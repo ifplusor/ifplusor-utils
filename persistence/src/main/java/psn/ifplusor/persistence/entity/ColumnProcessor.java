@@ -1,7 +1,5 @@
 package psn.ifplusor.persistence.entity;
 
-import psn.ifplusor.core.common.MapUtil;
-
 import java.io.IOException;
 import java.io.Writer;
 import java.util.*;
@@ -25,6 +23,12 @@ import javax.tools.JavaFileObject;
 
 
 /**
+ * 编译时持久层注解处理器
+ * <br/>
+ * 处理由{@link javax.persistence.Entity}注解的类，解析{@link javax.persistence.Column}注解实现注入。
+ * <br/>
+ * {@link javax.persistence.Column}只能注解在属性和Getter方法上，同一个Column在一个实体类中只能出现一次。
+ *
  * @author james
  * @version 10/19/16
  */
@@ -54,9 +58,8 @@ public class ColumnProcessor extends AbstractProcessor {
         for (Element e : genElements) {
             messager.printMessage(Kind.NOTE, "Generate deletage class for: " + e.getSimpleName());
 
-
             // 获取使用 @Column 注解的元素，收集 getter 和 setter 方法
-            Map<String, List<Element>> htColumnToElement = new HashMap<String, List<Element>>();
+            Map<String, Element> htColumnToElement = new HashMap<String, Element>();
             Map<String, Element> htGetterMethods = new HashMap<String, Element>();
             Map<String, Element> htSetterMethods = new HashMap<String, Element>();
 
@@ -64,15 +67,22 @@ public class ColumnProcessor extends AbstractProcessor {
 
                 Column annotation = ee.getAnnotation(Column.class);
                 if (annotation != null) {
-                    MapUtil.addToListMap(htColumnToElement, annotation.name(), ee);
+                    if (htColumnToElement.containsKey(annotation.name())) {
+                        messager.printMessage(Kind.ERROR, "\"@Column\" of \"" + annotation.name() + "\" is replicate!");
+                        return true;
+                    } else {
+                        htColumnToElement.put(annotation.name(), ee);
+                    }
                 }
 
                 if (ee.getKind() == ElementKind.METHOD && isPublic(ee)) {
                     String name = ee.toString();
                     String simpleName = ee.getSimpleName().toString();
-                    if (name.startsWith("get") && name.endsWith("()")) {
+                    if (name.startsWith("get") && name.endsWith("()")
+                            && (name.charAt(3) < 'a' || name.charAt(3) > 'z')) {
                         htGetterMethods.put(simpleName.substring(3).toLowerCase(), ee);
-                    } else if (name.startsWith("set") && !name.endsWith("()") && name.split(",").length == 1) {
+                    } else if (name.startsWith("set") && !name.endsWith("()") && name.split(",").length == 1
+                            && (name.charAt(3) < 'a' || name.charAt(3) > 'z')) {
                         htSetterMethods.put(simpleName.substring(3).toLowerCase(), ee);
                     }
                 }
@@ -97,7 +107,7 @@ public class ColumnProcessor extends AbstractProcessor {
                     .append(packagePath != null ? "package " + packagePath + ";\n" : "")
                     .append("import java.sql.ResultSet;\n")
                     .append("import java.sql.SQLException;\n")
-                    .append("import psn.ifplusor.psn.ifplusor.persistence.jdbc.JdbcDaoDelegate;\n")
+                    .append("import psn.ifplusor.persistence.jdbc.JdbcDaoDelegate;\n")
                     .append("import ").append(packagePath).append(".").append(clazzName).append(";\n")
                     .append("public class ").append(className).append(" implements JdbcDaoDelegate<").append(clazzName).append("> {\n");
 
@@ -125,7 +135,7 @@ public class ColumnProcessor extends AbstractProcessor {
         return false;
     }
 
-    private boolean genSelect(StringBuilder classString, Map<String, List<Element>> htColumnToElement) {
+    private boolean genSelect(StringBuilder classString, Map<String, Element> htColumnToElement) {
 
         classString
                 .append("    public String select() {\n")
@@ -147,7 +157,7 @@ public class ColumnProcessor extends AbstractProcessor {
     }
 
     private boolean genBeanFromResultSet(StringBuilder classString, String clazzName,
-                                         Map<String, List<Element>> htColumnToElement, Map<String, Element> htSetterMethods) {
+                                         Map<String, Element> htColumnToElement, Map<String, Element> htSetterMethods) {
 
         classString
                 .append("    public ").append(clazzName).append(" beanFromResultSet(ResultSet rs) {\n")
@@ -156,49 +166,49 @@ public class ColumnProcessor extends AbstractProcessor {
 
         // 通过 setter 方法注入 column
         for (String column : htColumnToElement.keySet()) {
-            List<Element> lstElements = htColumnToElement.get(column);
-            for (Element element : lstElements) {
-                String name = element.toString();
-                ElementKind kind = element.getKind();
-                Element setter = null;
-                if (kind == ElementKind.FIELD) { // 字段
-                    setter = htSetterMethods.get(name.toLowerCase());
-                } else if (kind == ElementKind.METHOD) { // 方法
-                    if (!name.startsWith("get") || !name.endsWith("()")) {
-                        messager.printMessage(Kind.ERROR, "\"@Column\" could not annotate method \"" + name + "\"!");
-                        return true;
-                    }
-                    setter = htSetterMethods.get(name.substring(3, name.length() - 2).toLowerCase());
-                }
-
-                if (setter == null) {
-                    messager.printMessage(Kind.ERROR, "setter method for field \"" + name + "\" is missing!", element);
+            Element element = htColumnToElement.get(column);
+            String name = element.toString();
+            ElementKind kind = element.getKind();
+            Element setter = null;
+            if (kind == ElementKind.FIELD) { // 字段
+                setter = htSetterMethods.get(name.toLowerCase());
+            } else if (kind == ElementKind.METHOD) { // 方法
+                if (!name.startsWith("get") || !name.endsWith("()")) {
+                    messager.printMessage(Kind.ERROR, "\"@Column\" could not annotate method \"" + name + "\"!");
                     return true;
                 }
-                String setterMethod = setter.toString();
-                String typeName = setterMethod.substring(setterMethod.indexOf("(") + 1, setterMethod.indexOf(")"));
+                setter = htSetterMethods.get(name.substring(3, name.length() - 2).toLowerCase());
+            }
+
+            if (setter == null) {
+                messager.printMessage(Kind.ERROR, "setter method for field \"" + name + "\" is missing!", element);
+                return true;
+            }
+            String setterMethod = setter.toString();
+            String typeName = setterMethod.substring(setterMethod.indexOf("(") + 1, setterMethod.indexOf(")"));
 
 //                    System.out.println("type name: " + typeName);
 
-                classString
-                        .append("        try {\n")
-                        .append("            obj.").append(setter.getSimpleName()).append("(rs.");
+            classString
+                    .append("        try {\n")
+                    .append("            obj.").append(setter.getSimpleName()).append("(rs.");
 
-                // 根据 setter 方法参数类型，选择 rs.getXXX 方法
-                if ("java.lang.String".equals(typeName)) {
-                    classString.append("getString");
-                } else if ("java.lang.Integer".equals(typeName) || "int".equals(typeName)) {
-                    classString.append("getInt");
-                } else if ("java.lang.Long".equals(typeName) || "long".equals(typeName)) {
-                    classString.append("getLong");
-                }
-
-                classString
-                        .append("(\"").append(column).append("\"));\n")
-                        .append("        } catch (SQLException e) {\n")
-                        .append("            e.printStackTrace();\n")
-                        .append("        }\n");
+            // 根据 setter 方法参数类型，选择 rs.getXXX 方法
+            if ("java.lang.String".equals(typeName)) {
+                classString.append("getString");
+            } else if ("java.lang.Integer".equals(typeName) || "int".equals(typeName)) {
+                classString.append("getInt");
+            } else if ("java.lang.Long".equals(typeName) || "long".equals(typeName)) {
+                classString.append("getLong");
+            } else if ("java.sql.Date".equals(typeName)) {
+                classString.append("getDate");
             }
+
+            classString
+                    .append("(\"").append(column).append("\"));\n")
+                    .append("        } catch (SQLException e) {\n")
+                    .append("            e.printStackTrace();\n")
+                    .append("        }\n");
         }
 
         classString
