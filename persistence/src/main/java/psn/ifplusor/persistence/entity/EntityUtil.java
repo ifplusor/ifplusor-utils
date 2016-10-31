@@ -2,11 +2,10 @@ package psn.ifplusor.persistence.entity;
 
 import javax.persistence.Column;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 /**
  * @author james
@@ -23,6 +22,55 @@ public class EntityUtil {
         }
 
         return properties;
+    }
+
+    public static void main(String[] args) {
+        Map<String, Field> map = getColumnFields(UserBaseInfo.class);
+
+        return;
+    }
+
+    private class Properties {
+        String column = null;
+        Field field = null;
+        Method getter = null;
+        Method setter = null;
+    }
+
+    private static Map<String, Field> getColumnFields(Class<?> clazz) {
+
+        Map<String, Field> htColumnToField = new HashMap<String, Field>();
+
+        Field[] fields = clazz.getDeclaredFields();
+
+        for (Field field : fields) {
+            Column column = field.getDeclaredAnnotation(Column.class);
+            if (column == null) continue;
+            if (htColumnToField.containsKey(column.name())) {
+                throw new RuntimeException("\"@Column\" of \"" + column.name() + "\" is replicate!");
+            }
+            htColumnToField.put(column.name(), field);
+        }
+
+        Method[] methods =  clazz.getDeclaredMethods();
+        for (Method method : methods) {
+            if (method.getModifiers() % 2 == 0) continue; // public
+            String name = method.getName();
+            Class<?> params[] = method.getParameterTypes();
+            if (name.startsWith("get") && name.length() > 3 && params.length == 0
+                    && (name.charAt(3) < 'a' || name.charAt(3) > 'z')) {
+                // getter method
+                System.out.println(name + "()");
+            }
+
+            if (name.startsWith("set") && name.length() > 3 && params.length == 1
+                    && (name.charAt(3) < 'a' || name.charAt(3) > 'z')) {
+                // setter method
+                System.out.println(name + "(" + params[0] + ")");
+            }
+        }
+
+        return htColumnToField;
     }
 
     public static <T> T beanFromResultSet(ResultSet rs, Class<T> clazz) throws IllegalAccessException, InstantiationException {
