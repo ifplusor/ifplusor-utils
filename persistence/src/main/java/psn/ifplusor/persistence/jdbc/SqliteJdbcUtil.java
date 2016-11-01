@@ -10,7 +10,16 @@ import java.sql.SQLException;
  */
 public class SqliteJdbcUtil {
 
-    private static final String DRIVER = "org.sqlite.JDBC";
+    public static final String DRIVER = "org.sqlite.JDBC";
+
+    public static String getJdbcUrl(String path) {
+
+        StringBuilder jdbcUrl = new StringBuilder();
+
+        jdbcUrl.append("jdbc:sqlite://").append(path);
+
+        return jdbcUrl.toString();
+    }
 
     public static Connection getConnection(String path) {
         try {

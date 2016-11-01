@@ -17,27 +17,27 @@ import java.util.*;
 public class EntityUtil {
 
     // 持久化实体类属性
-    private static Map<String, Map<String, Property>> htClassProperties
-            = new HashMap<String, Map<String, Property>>();
+    private static Map<String, List<Property>> htClassProperties
+            = new HashMap<String, List<Property>>();
 
     // 持久化实体类主键
-    private static Map<String, String> htClassId = new HashMap<String, String>();
+    private static Map<String, Property> htClassIdProperty = new HashMap<String, Property>();
 
     public static void clear() {
-        Map<String, Map<String, Property>> htBackup1 = htClassProperties;
+        Map<String, List<Property>> htBackup1 = htClassProperties;
         try {
-            htClassProperties = new HashMap<String, Map<String, Property>>();
+            htClassProperties = new HashMap<String, List<Property>>();
             htBackup1.clear();
         } catch (OutOfMemoryError e) {
             htClassProperties.clear();
         }
 
-        Map<String, String> htBackup2 = htClassId;
+        Map<String, Property> htBackup2 = htClassIdProperty;
         try {
-            htClassId = new HashMap<String, String>();
+            htClassIdProperty = new HashMap<String, Property>();
             htBackup2.clear();
         } catch (OutOfMemoryError e) {
-            htClassId.clear();
+            htClassIdProperty.clear();
         }
     }
 
@@ -97,36 +97,37 @@ public class EntityUtil {
         }
     }
 
-    public static Map<String, Property> getColumnProperties(Class<?> clazz) {
+    public static List<Property> getColumnProperties(Class<?> clazz) {
 
         if (htClassProperties.containsKey(clazz.getName())) {
             return htClassProperties.get(clazz.getName());
         }
 
-        Map<String, Property> htColumnToProperties = new HashMap<String, Property>();
+        Set<String> setColumn = new HashSet<String>();
+        List<Property> lstProperties = new ArrayList<Property>();
 
         Field[] fields = clazz.getDeclaredFields();
 
         for (Field field : fields) {
             Column column = field.getDeclaredAnnotation(Column.class);
             if (column == null) continue;
-            if (htColumnToProperties.containsKey(column.name())) {
+            if (setColumn.contains(column.name())) {
                 throw new RuntimeException("\"@Column\" of \"" + column.name() + "\" is replicate!");
             }
             Property property = new Property(column.name(), field,
                     getterMethod(clazz, field), setterMethod(clazz, field));
-            htColumnToProperties.put(column.name(), property);
+            lstProperties.add(property);
         }
 
-        htClassProperties.put(clazz.getName(), htColumnToProperties);
+        htClassProperties.put(clazz.getName(), lstProperties);
 
-        return htColumnToProperties;
+        return lstProperties;
     }
 
-    public static String getIdColumn(Class<?> clazz) throws Exception {
+    public static Property getIdProperty(Class<?> clazz) throws Exception {
 
-        if (htClassId.containsKey(clazz.getName())) {
-            return htClassId.get(clazz.getName());
+        if (htClassIdProperty.containsKey(clazz.getName())) {
+            return htClassIdProperty.get(clazz.getName());
         }
 
         Field[] fields = clazz.getDeclaredFields();
@@ -139,9 +140,11 @@ public class EntityUtil {
                 throw new Exception("The Id could not annotate non-Column field!");
             }
 
-            htClassId.put(clazz.getName(), column.name());
+            Property property = new Property(column.name(), field,
+                    getterMethod(clazz, field), setterMethod(clazz, field));
+            htClassIdProperty.put(clazz.getName(), property);
 
-            return column.name();
+            return property;
         }
 
         throw new Exception("Can not find Id field!");
@@ -154,15 +157,14 @@ public class EntityUtil {
             throw new SQLException("Table could not null or empty!");
         }
 
-        Map<String, Property> htColumnToProperties = getColumnProperties(clazz);
+        List<Property> lstProperties = getColumnProperties(clazz);
 
         StringBuilder sql  = new StringBuilder();
         sql.append("UPDATE ").append(table).append(" SET ");
 
         try {
-            for (String column : htColumnToProperties.keySet()) {
-                if (exColumn.contains(column)) continue;
-                Property property = htColumnToProperties.get(column);
+            for (Property property : lstProperties) {
+                if (exColumn.contains(property.column)) continue;
                 // 简单的拼接字符串
                 sql.append(property.column).append("='").append(property.getter.invoke(obj).toString()).append("',");
             }
@@ -185,7 +187,7 @@ public class EntityUtil {
             throw new SQLException("Table could not null or empty!");
         }
 
-        Map<String, Property> htColumnToProperties = getColumnProperties(clazz);
+        List<Property> lstProperties = getColumnProperties(clazz);
 
         StringBuilder sql  = new StringBuilder();
         sql.append("INSERT INTO ").append(table).append(" (");
@@ -194,8 +196,7 @@ public class EntityUtil {
         values.append("VALUES (");
 
         try {
-            for (String column : htColumnToProperties.keySet()) {
-                Property property = htColumnToProperties.get(column);
+            for (Property property : lstProperties) {
                 // 简单的拼接字符串
                 sql.append(property.column).append(",");
                 values.append("'").append(property.getter.invoke(obj).toString()).append("',");
@@ -210,6 +211,42 @@ public class EntityUtil {
         sql.append(") ").append(values);
 
         return sql.toString();
+    }
+
+    private static Map<String, Field> getColumnFields(Class<?> clazz) {
+
+        Map<String, Field> htColumnToField = new HashMap<String, Field>();
+
+        Field[] fields = clazz.getDeclaredFields();
+
+        for (Field field : fields) {
+            Column column = field.getDeclaredAnnotation(Column.class);
+            if (column == null) continue;
+            if (htColumnToField.containsKey(column.name())) {
+                throw new RuntimeException("\"@Column\" of \"" + column.name() + "\" is replicate!");
+            }
+            htColumnToField.put(column.name(), field);
+        }
+
+        Method[] methods =  clazz.getDeclaredMethods();
+        for (Method method : methods) {
+            if (method.getModifiers() % 2 == 0) continue; // public
+            String name = method.getName();
+            Class<?> params[] = method.getParameterTypes();
+            if (name.startsWith("get") && name.length() > 3 && params.length == 0
+                    && (name.charAt(3) < 'a' || name.charAt(3) > 'z')) {
+                // getter method
+                System.out.println(name + "()");
+            }
+
+            if (name.startsWith("set") && name.length() > 3 && params.length == 1
+                    && (name.charAt(3) < 'a' || name.charAt(3) > 'z')) {
+                // setter method
+                System.out.println(name + "(" + params[0] + ")");
+            }
+        }
+
+        return htColumnToField;
     }
 
     public static <T> T beanFromResultSet(ResultSet rs, Class<T> clazz) throws IllegalAccessException, InstantiationException {

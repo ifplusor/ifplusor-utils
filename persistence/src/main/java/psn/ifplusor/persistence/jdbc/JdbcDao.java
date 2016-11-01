@@ -1,8 +1,8 @@
 package psn.ifplusor.persistence.jdbc;
 
-
 import psn.ifplusor.persistence.entity.EntityUtil;
 
+import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -15,32 +15,32 @@ import java.util.Set;
  */
 public class JdbcDao<T> {
 
-    private psn.ifplusor.persistence.jdbc.JdbcDaoDelegate<T> delegate;
+    private JdbcDaoDelegate<T> delegate;
 
-    private Connection conn = null; // 保持长连接
+    private final DataSource dataSource;
 
-    public JdbcDao(Connection conn, Class<T> clazz) {
-        this(conn, null, clazz);
+    public JdbcDao(DataSource dataSource, Class<T> clazz) {
+        this(dataSource, null, clazz);
     }
 
-    public JdbcDao(Connection conn, psn.ifplusor.persistence.jdbc.JdbcDaoDelegate<T> delegate) {
-        this(conn, delegate, null);
+    public JdbcDao(DataSource dataSource, JdbcDaoDelegate<T> delegate) {
+        this(dataSource, delegate, null);
     }
 
-    private JdbcDao(Connection conn, psn.ifplusor.persistence.jdbc.JdbcDaoDelegate<T> delegate, Class<T> clazz) {
+    private JdbcDao(DataSource dataSource, JdbcDaoDelegate<T> delegate, Class<T> clazz) {
 
-        if (conn == null || delegate == null && clazz == null) {
+        if (dataSource == null || delegate == null && clazz == null) {
             throw new IllegalArgumentException("Encounter illegal parameter combination when construct JdbcDao.");
         }
 
-        this.conn = conn;
+        this.dataSource = dataSource;
 
         if (delegate != null) {
             this.delegate = delegate;
         } else {
 
             try {
-                Class<? extends psn.ifplusor.persistence.jdbc.JdbcDaoDelegate> delegateClazz = (Class<? extends JdbcDaoDelegate>) Class.forName(clazz.getName() + "Delegate");
+                Class<? extends JdbcDaoDelegate> delegateClazz = (Class<? extends JdbcDaoDelegate>) Class.forName(clazz.getName() + "Delegate");
                 this.delegate = delegateClazz.newInstance();
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException("Class of \"" + clazz.getName() + "Delegate\" is missing!");
@@ -66,9 +66,11 @@ public class JdbcDao<T> {
 
         List<T> list = new ArrayList<T>();
 
+        Connection conn = null;
         Statement stmt = null;
         ResultSet rs = null;
         try {
+            conn = dataSource.getConnection();
             stmt = conn.createStatement();
             rs = stmt.executeQuery(sql);
 
@@ -92,6 +94,12 @@ public class JdbcDao<T> {
             } catch (SQLException e) {
                 e.printStackTrace();
             }
+
+            if (conn != null) try {
+                conn.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
 
         return list;
@@ -111,12 +119,11 @@ public class JdbcDao<T> {
 
     public int update(String table, T obj, Class<T> clazz) {
         try {
-            String id = EntityUtil.getIdColumn(clazz);
+            EntityUtil.Property id = EntityUtil.getIdProperty(clazz);
             Set<String> exColumn = new HashSet<String>();
-            exColumn.add(id);
+            exColumn.add(id.getColumn());
             String sql = EntityUtil.genUpdateSql(table,
-                    id + "='" + EntityUtil.getColumnProperties(clazz).get(id)
-                            .getGetter().invoke(obj).toString() + "'",
+                    id.getColumn() + "='" + id.getGetter().invoke(obj).toString() + "'",
                     exColumn, obj, clazz);
             return (Integer) execute(sql);
         } catch (SQLException e) {
@@ -128,9 +135,11 @@ public class JdbcDao<T> {
     }
 
     public Object execute(String sql) throws SQLException {
+        Connection conn = null;
         Statement stmt = null;
         ResultSet rs = null;
         try {
+            conn = dataSource.getConnection();
             stmt = conn.createStatement();
             boolean bResultSet = stmt.execute(sql);
 
@@ -168,6 +177,12 @@ public class JdbcDao<T> {
 
             try {
                 if (stmt != null) stmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            try {
+                if (conn != null) conn.close();
             } catch (SQLException e) {
                 e.printStackTrace();
             }
