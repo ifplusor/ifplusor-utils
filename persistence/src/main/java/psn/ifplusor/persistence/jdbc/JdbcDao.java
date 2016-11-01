@@ -3,6 +3,7 @@ package psn.ifplusor.persistence.jdbc;
 import psn.ifplusor.persistence.entity.EntityUtil;
 
 import javax.sql.DataSource;
+import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -40,7 +41,8 @@ public class JdbcDao<T> {
         } else {
 
             try {
-                Class<? extends JdbcDaoDelegate> delegateClazz = (Class<? extends JdbcDaoDelegate>) Class.forName(clazz.getName() + "Delegate");
+                Class<? extends JdbcDaoDelegate> delegateClazz =
+                        (Class<? extends JdbcDaoDelegate>) Class.forName(clazz.getName() + "Delegate");
                 this.delegate = delegateClazz.newInstance();
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException("Class of \"" + clazz.getName() + "Delegate\" is missing!");
@@ -106,32 +108,84 @@ public class JdbcDao<T> {
     }
 
     public int insert(String table, T obj, Class<T> clazz) {
+        List<T> lst = new ArrayList<T>();
+        lst.add(obj);
+        return insert(table, lst, clazz);
+    }
+
+    public int insert(String table, List<T> lstObj, Class<T> clazz) {
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        int count = 0;
+
         try {
-            String sql = EntityUtil.genInsertSql(table, obj, clazz);
-            return (Integer) execute(sql);
+            String sql = EntityUtil.genInsertSqlWithParams(table, clazz);
+            List<EntityUtil.Property> lstProperties = EntityUtil.getColumnProperties(clazz);
+
+            conn = dataSource.getConnection();
+            stmt = conn.prepareStatement(sql);
+
+            for (T obj : lstObj) {
+                int index = 1;
+                for (EntityUtil.Property property : lstProperties) {
+                    stmt.setObject(index++, property.getGetter().invoke(obj));
+                }
+                count += stmt.executeUpdate();
+            }
         } catch (SQLException e) {
             e.printStackTrace();
-        } catch (Exception e) {
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
             e.printStackTrace();
         }
-        return -1;
+
+        return count;
     }
 
     public int update(String table, T obj, Class<T> clazz) {
+        List<T> lst = new ArrayList<T>();
+        lst.add(obj);
+        return update(table, lst, clazz);
+    }
+
+    public int update(String table, List<T> lstObj, Class<T> clazz) {
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        int count = 0;
+
         try {
             EntityUtil.Property id = EntityUtil.getIdProperty(clazz);
             Set<String> exColumn = new HashSet<String>();
             exColumn.add(id.getColumn());
-            String sql = EntityUtil.genUpdateSql(table,
-                    id.getColumn() + "='" + id.getGetter().invoke(obj).toString() + "'",
-                    exColumn, obj, clazz);
-            return (Integer) execute(sql);
+            String sql = EntityUtil.genUpdateSqlWithParams(table,
+                    id.getColumn() + "=?",
+                    exColumn, clazz);
+            List<EntityUtil.Property> lstProperties = EntityUtil.getColumnProperties(clazz);
+
+            conn = dataSource.getConnection();
+            stmt = conn.prepareStatement(sql);
+
+            for (T obj : lstObj) {
+                int index = 1;
+                for (EntityUtil.Property property : lstProperties) {
+                    if (exColumn.contains(property.getColumn())) continue;
+                    stmt.setObject(index++, property.getGetter().invoke(obj));
+                }
+                stmt.setObject(index, id.getGetter().invoke(obj));
+                count += stmt.executeUpdate();
+            }
         } catch (SQLException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
             e.printStackTrace();
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return -1;
+
+        return count;
     }
 
     public Object execute(String sql) throws SQLException {

@@ -9,6 +9,7 @@
 		<groupId>psn.ifplusor</groupId>
 		<artifactId>ifplusor-utils</artifactId>
 		<version>0.1</version>
+		<relativePath>../</relativePath>
 	</parent>
 
 	<artifactId>ifplusor-core</artifactId>

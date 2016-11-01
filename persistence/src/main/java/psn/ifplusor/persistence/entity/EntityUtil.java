@@ -16,296 +16,255 @@ import java.util.*;
  */
 public class EntityUtil {
 
-    // 持久化实体类属性
-    private static Map<String, List<Property>> htClassProperties
-            = new HashMap<String, List<Property>>();
+	// 持久化实体类属性
+	private static Map<String, List<Property>> htClassProperties
+			= new HashMap<String, List<Property>>();
 
-    // 持久化实体类主键
-    private static Map<String, Property> htClassIdProperty = new HashMap<String, Property>();
+	// 持久化实体类主键
+	private static Map<String, Property> htClassIdProperty = new HashMap<String, Property>();
 
-    public static void clear() {
-        Map<String, List<Property>> htBackup1 = htClassProperties;
-        try {
-            htClassProperties = new HashMap<String, List<Property>>();
-            htBackup1.clear();
-        } catch (OutOfMemoryError e) {
-            htClassProperties.clear();
-        }
+	public static void clear() {
+		Map<String, List<Property>> htBackup1 = htClassProperties;
+		try {
+			htClassProperties = new HashMap<String, List<Property>>();
+			htBackup1.clear();
+		} catch (OutOfMemoryError e) {
+			htClassProperties.clear();
+		}
 
-        Map<String, Property> htBackup2 = htClassIdProperty;
-        try {
-            htClassIdProperty = new HashMap<String, Property>();
-            htBackup2.clear();
-        } catch (OutOfMemoryError e) {
-            htClassIdProperty.clear();
-        }
-    }
+		Map<String, Property> htBackup2 = htClassIdProperty;
+		try {
+			htClassIdProperty = new HashMap<String, Property>();
+			htBackup2.clear();
+		} catch (OutOfMemoryError e) {
+			htClassIdProperty.clear();
+		}
+	}
 
-    public static class Property {
-        String column = null;
-        Field field = null;
-        Method getter = null;
-        Method setter = null;
+	public static class Property {
+		String column = null;
+		Field field = null;
+		Method getter = null;
+		Method setter = null;
 
-        Property(String column, Field field, Method getter, Method setter) {
-            this.column = column;
-            this.field = field;
-            this.getter = getter;
-            this.setter = setter;
-        }
+		Property(String column, Field field, Method getter, Method setter) {
+			this.column = column;
+			this.field = field;
+			this.getter = getter;
+			this.setter = setter;
+		}
 
-        public String getColumn() {
-            return column;
-        }
+		public String getColumn() {
+			return column;
+		}
 
-        public Field getField() {
-            return field;
-        }
+		public Field getField() {
+			return field;
+		}
 
-        public Method getGetter() {
-            return getter;
-        }
+		public Method getGetter() {
+			return getter;
+		}
 
-        public Method getSetter() {
-            return setter;
-        }
-    }
+		public Method getSetter() {
+			return setter;
+		}
+	}
 
-    private static Method getterMethod(Class<?> clazz, Field field) {
+	private static Method getterMethod(Class<?> clazz, Field field) {
 
-        String name = field.getName();
-        String getterName = "get" + ((name.charAt(0) >= 'a' && name.charAt(0) <= 'z')
-                ? (char) (name.charAt(0) - 32) + name.substring(1, name.length()) : name);
+		String name = field.getName();
+		String getterName = "get" + ((name.charAt(0) >= 'a' && name.charAt(0) <= 'z')
+				? (char) (name.charAt(0) - 32) + name.substring(1, name.length()) : name);
 
-        try {
-            return clazz.getDeclaredMethod(getterName);
-        } catch (NoSuchMethodException e) {
-            return null;
-        }
-    }
+		try {
+			return clazz.getDeclaredMethod(getterName);
+		} catch (NoSuchMethodException e) {
+			return null;
+		}
+	}
 
-    private static Method setterMethod(Class<?> clazz, Field field) {
+	private static Method setterMethod(Class<?> clazz, Field field) {
 
-        String name = field.getName();
-        String setterName = "set" + ((name.charAt(0) >= 'a' && name.charAt(0) <= 'z')
-                ? (char) (name.charAt(0) - 32) + name.substring(1, name.length()) : name);
+		String name = field.getName();
+		String setterName = "set" + ((name.charAt(0) >= 'a' && name.charAt(0) <= 'z')
+				? (char) (name.charAt(0) - 32) + name.substring(1, name.length()) : name);
 
-        try {
-            return clazz.getDeclaredMethod(setterName, field.getType());
-        } catch (NoSuchMethodException e) {
-            return null;
-        }
-    }
+		try {
+			return clazz.getDeclaredMethod(setterName, field.getType());
+		} catch (NoSuchMethodException e) {
+			return null;
+		}
+	}
 
-    public static List<Property> getColumnProperties(Class<?> clazz) {
+	public static List<Property> getColumnProperties(Class<?> clazz) {
 
-        if (htClassProperties.containsKey(clazz.getName())) {
-            return htClassProperties.get(clazz.getName());
-        }
+		if (htClassProperties.containsKey(clazz.getName())) {
+			return htClassProperties.get(clazz.getName());
+		}
 
-        Set<String> setColumn = new HashSet<String>();
-        List<Property> lstProperties = new ArrayList<Property>();
+		Set<String> setColumn = new HashSet<String>();
+		List<Property> lstProperties = new ArrayList<Property>();
 
-        Field[] fields = clazz.getDeclaredFields();
+		Field[] fields = clazz.getDeclaredFields();
 
-        for (Field field : fields) {
-            Column column = field.getDeclaredAnnotation(Column.class);
-            if (column == null) continue;
-            if (setColumn.contains(column.name())) {
-                throw new RuntimeException("\"@Column\" of \"" + column.name() + "\" is replicate!");
-            }
-            Property property = new Property(column.name(), field,
-                    getterMethod(clazz, field), setterMethod(clazz, field));
-            lstProperties.add(property);
-        }
+		for (Field field : fields) {
+			Column column = field.getDeclaredAnnotation(Column.class);
+			if (column == null) continue;
+			if (setColumn.contains(column.name())) {
+				throw new RuntimeException("\"@Column\" of \"" + column.name() + "\" is replicate!");
+			}
+			Property property = new Property(column.name(), field,
+					getterMethod(clazz, field), setterMethod(clazz, field));
+			lstProperties.add(property);
+		}
 
-        htClassProperties.put(clazz.getName(), lstProperties);
+		htClassProperties.put(clazz.getName(), lstProperties);
 
-        return lstProperties;
-    }
+		return lstProperties;
+	}
 
-    public static Property getIdProperty(Class<?> clazz) throws Exception {
+	public static Property getIdProperty(Class<?> clazz) throws Exception {
 
-        if (htClassIdProperty.containsKey(clazz.getName())) {
-            return htClassIdProperty.get(clazz.getName());
-        }
+		if (htClassIdProperty.containsKey(clazz.getName())) {
+			return htClassIdProperty.get(clazz.getName());
+		}
 
-        Field[] fields = clazz.getDeclaredFields();
+		Field[] fields = clazz.getDeclaredFields();
 
-        for (Field field : fields) {
-            Id id = field.getDeclaredAnnotation(Id.class);
-            if (id == null) continue;
-            Column column = field.getDeclaredAnnotation(Column.class);
-            if (column == null) {
-                throw new Exception("The Id could not annotate non-Column field!");
-            }
+		for (Field field : fields) {
+			Id id = field.getDeclaredAnnotation(Id.class);
+			if (id == null) continue;
+			Column column = field.getDeclaredAnnotation(Column.class);
+			if (column == null) {
+				throw new Exception("The Id could not annotate non-Column field!");
+			}
 
-            Property property = new Property(column.name(), field,
-                    getterMethod(clazz, field), setterMethod(clazz, field));
-            htClassIdProperty.put(clazz.getName(), property);
+			Property property = new Property(column.name(), field,
+					getterMethod(clazz, field), setterMethod(clazz, field));
+			htClassIdProperty.put(clazz.getName(), property);
 
-            return property;
-        }
+			return property;
+		}
 
-        throw new Exception("Can not find Id field!");
-    }
+		throw new Exception("Can not find Id field!");
+	}
 
-    public static <T> String genUpdateSql(String table, String where, Set<String> exColumn, T obj, Class<T> clazz)
-            throws SQLException {
+	public static <T> String genUpdateSqlWithParams(String table, String where, Set<String> exColumn, Class<T> clazz)
+			throws SQLException {
 
-        if (table == null || table.trim().length() == 0) {
-            throw new SQLException("Table could not null or empty!");
-        }
+		if (table == null || table.trim().length() == 0) {
+			throw new SQLException("Table could not null or empty!");
+		}
 
-        List<Property> lstProperties = getColumnProperties(clazz);
+		List<Property> lstProperties = getColumnProperties(clazz);
 
-        StringBuilder sql  = new StringBuilder();
-        sql.append("UPDATE ").append(table).append(" SET ");
+		StringBuilder sql = new StringBuilder();
+		sql.append("UPDATE ").append(table).append(" SET ");
 
-        try {
-            for (Property property : lstProperties) {
-                if (exColumn.contains(property.column)) continue;
-                // 简单的拼接字符串
-                sql.append(property.column).append("='").append(property.getter.invoke(obj).toString()).append("',");
-            }
-        } catch (ReflectiveOperationException e) {
-            throw new SQLException("Encounter error when build update sql!\n" + e.getMessage());
-        }
-        sql.deleteCharAt(sql.length() - 1);
+		for (Property property : lstProperties) {
+			if (exColumn.contains(property.column)) continue;
+			// 简单的拼接字符串
+			sql.append(property.column).append("=?,");
+		}
 
-        if (where != null && where.trim().length() != 0) {
-            sql.append(" WHERE ").append(where);
-        }
+		sql.deleteCharAt(sql.length() - 1);
 
-        return sql.toString();
-    }
+		if (where != null && where.trim().length() != 0) {
+			sql.append(" WHERE ").append(where);
+		}
 
-    public static <T> String genInsertSql(String table, T obj, Class<T> clazz)
-            throws SQLException {
+		return sql.toString();
+	}
 
-        if (table == null || table.trim().length() == 0) {
-            throw new SQLException("Table could not null or empty!");
-        }
+	public static <T> String genInsertSqlWithParams(String table, Class<T> clazz) throws SQLException {
 
-        List<Property> lstProperties = getColumnProperties(clazz);
+		if (table == null || table.trim().length() == 0) {
+			throw new SQLException("Table could not null or empty!");
+		}
 
-        StringBuilder sql  = new StringBuilder();
-        sql.append("INSERT INTO ").append(table).append(" (");
+		List<Property> lstProperties = getColumnProperties(clazz);
 
-        StringBuilder values = new StringBuilder();
-        values.append("VALUES (");
+		StringBuilder sql = new StringBuilder();
+		sql.append("INSERT INTO ").append(table).append(" (");
 
-        try {
-            for (Property property : lstProperties) {
-                // 简单的拼接字符串
-                sql.append(property.column).append(",");
-                values.append("'").append(property.getter.invoke(obj).toString()).append("',");
-            }
-        } catch (ReflectiveOperationException e) {
-            throw new SQLException("Encounter error when build update sql!\n" + e.getMessage());
-        }
-        values.deleteCharAt(values.length() - 1);
-        values.append(")");
+		StringBuilder values = new StringBuilder();
+		values.append("VALUES (");
 
-        sql.deleteCharAt(sql.length() - 1);
-        sql.append(") ").append(values);
+		for (Property property : lstProperties) {
+			// 简单的拼接字符串
+			sql.append(property.column).append(",");
+			values.append("?,");
+		}
 
-        return sql.toString();
-    }
+		values.deleteCharAt(values.length() - 1);
+		values.append(")");
 
-    private static Map<String, Field> getColumnFields(Class<?> clazz) {
+		sql.deleteCharAt(sql.length() - 1);
+		sql.append(") ").append(values);
 
-        Map<String, Field> htColumnToField = new HashMap<String, Field>();
+		return sql.toString();
+	}
 
-        Field[] fields = clazz.getDeclaredFields();
+	public static <T> T beanFromResultSet(ResultSet rs, Class<T> clazz)
+			throws IllegalAccessException, InstantiationException {
 
-        for (Field field : fields) {
-            Column column = field.getDeclaredAnnotation(Column.class);
-            if (column == null) continue;
-            if (htColumnToField.containsKey(column.name())) {
-                throw new RuntimeException("\"@Column\" of \"" + column.name() + "\" is replicate!");
-            }
-            htColumnToField.put(column.name(), field);
-        }
+		if (rs == null || clazz == null)
+			throw new IllegalArgumentException();
 
-        Method[] methods =  clazz.getDeclaredMethods();
-        for (Method method : methods) {
-            if (method.getModifiers() % 2 == 0) continue; // public
-            String name = method.getName();
-            Class<?> params[] = method.getParameterTypes();
-            if (name.startsWith("get") && name.length() > 3 && params.length == 0
-                    && (name.charAt(3) < 'a' || name.charAt(3) > 'z')) {
-                // getter method
-                System.out.println(name + "()");
-            }
+		T obj = clazz.newInstance();
 
-            if (name.startsWith("set") && name.length() > 3 && params.length == 1
-                    && (name.charAt(3) < 'a' || name.charAt(3) > 'z')) {
-                // setter method
-                System.out.println(name + "(" + params[0] + ")");
-            }
-        }
+		Field[] fields = clazz.getDeclaredFields();
 
-        return htColumnToField;
-    }
+		for (Field field : fields) {
+			String name = field.getName();
+			Class<?> type = field.getType();
+			Column column = field.getAnnotation(Column.class);
 
-    public static <T> T beanFromResultSet(ResultSet rs, Class<T> clazz) throws IllegalAccessException, InstantiationException {
-        if (rs == null || clazz == null)
-            throw new IllegalArgumentException();
+			if (column == null) continue;
 
-        T obj = clazz.newInstance();
+			String fieldName = column.name();
 
-        Field[] fields = clazz.getDeclaredFields();
+			try {
+				field.setAccessible(true);
 
-        for (Field field : fields) {
-            String name = field.getName();
-            Class<?> type = field.getType();
-            Column column = field.getAnnotation(Column.class);
+				if (type == String.class) {
+					String value = rs.getString(fieldName);
+					field.set(obj, value == null ? "" : value);
+				} else if (type == int.class || type == Integer.class) {
+					field.set(obj, rs.getInt(fieldName));
+				} else if (type == long.class || type == Long.class) {
+					field.set(obj, rs.getLong(fieldName));
+				} else if (type == double.class || type == Double.class) {
+					field.set(obj, rs.getDouble(fieldName));
+				} else if (type == float.class || type == Float.class) {
+					field.set(obj, rs.getFloat(fieldName));
+				} else if (type == boolean.class || type == Boolean.class) {
+					field.set(obj, rs.getBoolean(fieldName));
+				} else {
+					Object value = rs.getObject(fieldName);
+					if (value != null)
+						field.set(obj, rs.getDate(fieldName));
+				}
+			} catch (SQLException e) {
+				if (type == String.class) {
+					field.set(obj, "");
+				} else if (type == int.class || type == Integer.class) {
+					field.set(obj, 0);
+				} else if (type == long.class || type == Long.class) {
+					field.set(obj, 0L);
+				} else if (type == double.class || type == Double.class) {
+					field.set(obj, 0.0);
+				} else if (type == float.class || type == Float.class) {
+					field.set(obj, 0.0);
+				} else if (type == boolean.class || type == Boolean.class) {
+					field.set(obj, false);
+				} else {
+					field.set(obj, new Object());
+				}
+			}
+		}
 
-            if (column == null) continue;
-
-            String fieldName = column.name();
-
-            try {
-                field.setAccessible(true);
-
-                if (type == String.class) {
-                    String value = rs.getString(fieldName);
-                    field.set(obj, value == null ? "" : value);
-                } else if (type == int.class || type == Integer.class) {
-                    field.set(obj, rs.getInt(fieldName));
-                } else if (type == long.class || type == Long.class) {
-                    field.set(obj, rs.getLong(fieldName));
-                } else if (type == double.class || type == Double.class) {
-                    field.set(obj, rs.getDouble(fieldName));
-                } else if (type == float.class || type == Float.class) {
-                    field.set(obj, rs.getFloat(fieldName));
-                } else if (type == boolean.class || type == Boolean.class) {
-                    field.set(obj, rs.getBoolean(fieldName));
-                } else {
-                    Object value = rs.getObject(fieldName);
-                    if (value != null)
-                        field.set(obj, rs.getDate(fieldName));
-                }
-            } catch (SQLException e) {
-                if (type == String.class) {
-                    field.set(obj, "");
-                } else if (type == int.class || type == Integer.class) {
-                    field.set(obj, 0);
-                } else if (type == long.class || type == Long.class) {
-                    field.set(obj, 0L);
-                } else if (type == double.class || type == Double.class) {
-                    field.set(obj, 0.0);
-                } else if (type == float.class || type == Float.class) {
-                    field.set(obj, 0.0);
-                } else if (type == boolean.class || type == Boolean.class) {
-                    field.set(obj, false);
-                } else {
-                    field.set(obj, new Object());
-                }
-            }
-        }
-
-        return obj;
-    }
+		return obj;
+	}
 }
