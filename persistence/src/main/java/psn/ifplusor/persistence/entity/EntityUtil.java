@@ -2,11 +2,18 @@ package psn.ifplusor.persistence.entity;
 
 import javax.persistence.Column;
 import javax.persistence.Id;
+import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.sql.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
+import java.util.Date;
 
 /**
  * {link javax.persistence.Column}只支持注解在属性上
@@ -162,10 +169,16 @@ public class EntityUtil {
 		StringBuilder sql = new StringBuilder();
 		sql.append("UPDATE ").append(table).append(" SET ");
 
-		for (Property property : lstProperties) {
-			if (exColumn.contains(property.column)) continue;
-			// 简单的拼接字符串
-			sql.append(property.column).append("=?,");
+		if (exColumn != null && exColumn.size() != 0) {
+			for (Property property : lstProperties) {
+				if (exColumn.contains(property.column)) continue;
+				// 简单的拼接字符串
+				sql.append(property.column).append("=?,");
+			}
+		} else {
+			for (Property property : lstProperties) {
+				sql.append(property.column).append("=?,");
+			}
 		}
 
 		sql.deleteCharAt(sql.length() - 1);
@@ -177,7 +190,7 @@ public class EntityUtil {
 		return sql.toString();
 	}
 
-	public static <T> String genInsertSqlWithParams(String table, Class<T> clazz) throws SQLException {
+	public static <T> String genInsertSqlWithParams(String table, Set<String> exColumn, Class<T> clazz) throws SQLException {
 
 		if (table == null || table.trim().length() == 0) {
 			throw new SQLException("Table could not null or empty!");
@@ -191,10 +204,18 @@ public class EntityUtil {
 		StringBuilder values = new StringBuilder();
 		values.append("VALUES (");
 
-		for (Property property : lstProperties) {
-			// 简单的拼接字符串
-			sql.append(property.column).append(",");
-			values.append("?,");
+		if (exColumn != null && exColumn.size() != 0) {
+			for (Property property : lstProperties) {
+				if (exColumn.contains(property.column)) continue;
+				// 简单的拼接字符串
+				sql.append(property.column).append(",");
+				values.append("?,");
+			}
+		} else {
+			for (Property property : lstProperties) {
+				sql.append(property.column).append(",");
+				values.append("?,");
+			}
 		}
 
 		values.deleteCharAt(values.length() - 1);
@@ -202,6 +223,43 @@ public class EntityUtil {
 
 		sql.deleteCharAt(sql.length() - 1);
 		sql.append(") ").append(values);
+
+		return sql.toString();
+	}
+
+	public static <T> String genQuerySqlWithParams(String table, String where, Integer limit, Set<String> exColumn, Class<T> clazz) throws SQLException {
+
+		if (table == null || table.trim().length() == 0) {
+			throw new SQLException("Table could not null or empty!");
+		}
+
+		List<Property> lstProperties = getColumnProperties(clazz);
+
+		StringBuilder sql = new StringBuilder();
+		sql.append("SELECT ");
+
+		if (exColumn != null && exColumn.size() != 0) {
+			for (Property property : lstProperties) {
+				if (exColumn.contains(property.column)) continue;
+				// 简单的拼接字符串
+				sql.append(property.column).append(",");
+			}
+		} else {
+			for (Property property : lstProperties) {
+				sql.append(property.column).append(",");
+			}
+		}
+
+		sql.deleteCharAt(sql.length() - 1);
+		sql.append(" FROM ").append(table.trim());
+
+		if (where != null && where.trim().length() != 0) {
+			sql.append(" WHERE ").append(where);
+		}
+
+		if (limit != null && limit > 0) {
+			sql.append(" LIMIT ").append(limit);
+		}
 
 		return sql.toString();
 	}
@@ -214,54 +272,63 @@ public class EntityUtil {
 
 		T obj = clazz.newInstance();
 
-		Field[] fields = clazz.getDeclaredFields();
+		List<Property> lstProperties = getColumnProperties(clazz);
 
-		for (Field field : fields) {
-			String name = field.getName();
-			Class<?> type = field.getType();
-			Column column = field.getAnnotation(Column.class);
-
-			if (column == null) continue;
-
-			String fieldName = column.name();
+		for (Property property : lstProperties) {
+			String column = property.column;
+			Class<?> type = property.field.getType();
 
 			try {
-				field.setAccessible(true);
-
-				if (type == String.class) {
-					String value = rs.getString(fieldName);
-					field.set(obj, value == null ? "" : value);
-				} else if (type == int.class || type == Integer.class) {
-					field.set(obj, rs.getInt(fieldName));
-				} else if (type == long.class || type == Long.class) {
-					field.set(obj, rs.getLong(fieldName));
-				} else if (type == double.class || type == Double.class) {
-					field.set(obj, rs.getDouble(fieldName));
-				} else if (type == float.class || type == Float.class) {
-					field.set(obj, rs.getFloat(fieldName));
-				} else if (type == boolean.class || type == Boolean.class) {
-					field.set(obj, rs.getBoolean(fieldName));
-				} else {
-					Object value = rs.getObject(fieldName);
-					if (value != null)
-						field.set(obj, rs.getDate(fieldName));
+				if (type == Byte.class || type == byte.class) {
+					property.setter.invoke(obj, rs.getByte(column));
+				} else if (type == String.class) {
+					property.setter.invoke(obj, rs.getString(column));
+				} else if (type == BigDecimal.class) {
+					property.setter.invoke(obj, rs.getBigDecimal(column));
+				} else if (type == Short.class || type == short.class) {
+					property.setter.invoke(obj, rs.getShort(column));
+				} else if (type == Integer.class || type == int.class) {
+					property.setter.invoke(obj, rs.getInt(column));
+				} else if (type == Long.class || type == long.class) {
+					property.setter.invoke(obj, rs.getLong(column));
+				} else if (type == Float.class || type == float.class) {
+					property.setter.invoke(obj, rs.getShort(column));
+				} else if (type == Double.class || type == double.class) {
+					property.setter.invoke(obj, rs.getDouble(column));
+				} else if (type == byte[].class) {
+					property.setter.invoke(obj, (Object) rs.getBytes(column));
+				} else if (type == java.sql.Date.class) {
+					property.setter.invoke(obj, rs.getDate(column));
+				} else if (type == Time.class) {
+					property.setter.invoke(obj, rs.getTime(column));
+				} else if (type == Timestamp.class) {
+					property.setter.invoke(obj, rs.getTime(column));
+				} else if (type == Boolean.class || type == boolean.class) {
+					property.setter.invoke(obj, rs.getBoolean(column));
+				} else if (type == InputStream.class) {
+					property.setter.invoke(obj, rs.getBinaryStream(column));
+				} else if (type == java.sql.Blob.class) {
+					property.setter.invoke(obj, rs.getBlob(column));
+				} else if (type == java.sql.Clob.class) {
+					property.setter.invoke(obj, rs.getClob(column));
+				} /*else if (this.treatUtilDateAsTimestamp.getValue() && parameterObj instanceof java.util.Date) {
+					setTimestamp(parameterIndex, new Timestamp(((java.util.Date) parameterObj).getTime()));
+				}*/ else if (type == BigInteger.class) {
+					property.setter.invoke(obj, new BigInteger(rs.getString(column)));
+				} /*else if (type == LocalDate.class) {
+					setDate(parameterIndex, java.sql.Date.valueOf((LocalDate) parameterObj));
+				} else if (parameterObj instanceof LocalDateTime) {
+					setTimestamp(parameterIndex, Timestamp.valueOf((LocalDateTime) parameterObj));
+				} else if (parameterObj instanceof LocalTime) {
+					setTime(parameterIndex, Time.valueOf((LocalTime) parameterObj));
+				}*/ else {
+					property.setter.invoke(obj, rs.getString(column));
+//					setSerializableObject(parameterIndex, parameterObj);
 				}
 			} catch (SQLException e) {
-				if (type == String.class) {
-					field.set(obj, "");
-				} else if (type == int.class || type == Integer.class) {
-					field.set(obj, 0);
-				} else if (type == long.class || type == Long.class) {
-					field.set(obj, 0L);
-				} else if (type == double.class || type == Double.class) {
-					field.set(obj, 0.0);
-				} else if (type == float.class || type == Float.class) {
-					field.set(obj, 0.0);
-				} else if (type == boolean.class || type == Boolean.class) {
-					field.set(obj, false);
-				} else {
-					field.set(obj, new Object());
-				}
+				e.printStackTrace();
+			} catch (InvocationTargetException e) {
+				e.printStackTrace();
 			}
 		}
 

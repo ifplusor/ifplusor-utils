@@ -194,7 +194,9 @@ public class ColumnProcessor extends AbstractProcessor {
                     .append("            obj.").append(setter.getSimpleName()).append("(rs.");
 
             // 根据 setter 方法参数类型，选择 rs.getXXX 方法
-            if ("java.lang.String".equals(typeName)) {
+            if ("java.lang.Byte".equals(typeName)) {
+                classString.append("getByte");
+            } else if ("java.lang.String".equals(typeName)) {
                 classString.append("getString");
             } else if ("java.lang.Integer".equals(typeName) || "int".equals(typeName)) {
                 classString.append("getInt");

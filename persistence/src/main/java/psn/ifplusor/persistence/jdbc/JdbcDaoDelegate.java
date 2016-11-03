@@ -10,5 +10,5 @@ public interface JdbcDaoDelegate <T> {
 
     String select();
 
-    public T beanFromResultSet(ResultSet rs);
+    T beanFromResultSet(ResultSet rs);
 }
