@@ -22,4 +22,13 @@ public class DataSourceUtil {
 
         return dataSource;
     }
+
+    public static DataSource getSqliteDataSource(String path) throws PropertyVetoException {
+
+        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+        dataSource.setDriverClass(SqliteJdbcUtil.DRIVER);
+        dataSource.setJdbcUrl(SqliteJdbcUtil.getJdbcUrl(path));
+
+        return dataSource;
+    }
 }
