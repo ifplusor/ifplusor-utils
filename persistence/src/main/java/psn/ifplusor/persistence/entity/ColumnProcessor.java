@@ -194,16 +194,26 @@ public class ColumnProcessor extends AbstractProcessor {
                     .append("            obj.").append(setter.getSimpleName()).append("(rs.");
 
             // 根据 setter 方法参数类型，选择 rs.getXXX 方法
-            if ("java.lang.Byte".equals(typeName)) {
+            if ("java.lang.Byte".equals(typeName) || "byte".equals(typeName)) {
                 classString.append("getByte");
             } else if ("java.lang.String".equals(typeName)) {
                 classString.append("getString");
+            } else if ("java.math.BigDecimal".equals(typeName)) {
+                classString.append("getBigDecimal");
+            } else if ("java.lang.Short".equals(typeName) || "short".equals(typeName)) {
+                classString.append("getShort");
             } else if ("java.lang.Integer".equals(typeName) || "int".equals(typeName)) {
                 classString.append("getInt");
             } else if ("java.lang.Long".equals(typeName) || "long".equals(typeName)) {
                 classString.append("getLong");
+            } else if ("java.lang.Float".equals(typeName) || "float".equals(typeName)) {
+                classString.append("getFloat");
+            } else if ("java.lang.Double".equals(typeName) || "double".equals(typeName)) {
+                classString.append("getDouble");
             } else if ("java.sql.Date".equals(typeName)) {
                 classString.append("getDate");
+            } else { // 默认返回 Object
+                classString.append("getObject");
             }
 
             classString

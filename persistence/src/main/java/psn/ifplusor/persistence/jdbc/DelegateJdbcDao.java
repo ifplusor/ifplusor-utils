@@ -1,5 +1,8 @@
 package psn.ifplusor.persistence.jdbc;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
@@ -10,6 +13,8 @@ import java.util.List;
  * @version 10/12/16
  */
 public class DelegateJdbcDao<T> implements JdbcDao<T> {
+
+    private final Logger logger = LoggerFactory.getLogger(DelegateJdbcDao.class);
 
     private final DataSource dataSource;
     private final JdbcDaoDelegate<T> delegate;
@@ -97,6 +102,10 @@ public class DelegateJdbcDao<T> implements JdbcDao<T> {
         return list;
     }
 
+    public List<T> queryByParamWhere(String table, String where, List<List<?>> lstParams) {
+        return impl.queryByParamWhere(table, where, lstParams);
+    }
+
     public int insert(String table, T obj) {
         return impl.insert(table, obj);
     }
@@ -114,6 +123,6 @@ public class DelegateJdbcDao<T> implements JdbcDao<T> {
     }
 
     public Object execute(String sql) throws SQLException {
-        return null;
+        return impl.execute(sql);
     }
 }

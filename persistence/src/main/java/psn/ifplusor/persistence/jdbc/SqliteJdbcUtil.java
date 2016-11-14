@@ -26,7 +26,7 @@ public class SqliteJdbcUtil {
             // 加载数据库驱动程序
             Class.forName(DRIVER);
 
-            String url = "jdbc:sqlite:" + path;
+            String url = getJdbcUrl(path);
 
             // 获取连接
 //            DriverManager.setLoginTimeout(1);

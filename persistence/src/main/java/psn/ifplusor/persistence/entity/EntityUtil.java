@@ -292,7 +292,7 @@ public class EntityUtil {
 				} else if (type == Long.class || type == long.class) {
 					property.setter.invoke(obj, rs.getLong(column));
 				} else if (type == Float.class || type == float.class) {
-					property.setter.invoke(obj, rs.getShort(column));
+					property.setter.invoke(obj, rs.getFloat(column));
 				} else if (type == Double.class || type == double.class) {
 					property.setter.invoke(obj, rs.getDouble(column));
 				} else if (type == byte[].class) {

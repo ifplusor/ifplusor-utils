@@ -40,6 +40,7 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
         Connection conn = null;
         Statement stmt = null;
         ResultSet rs = null;
+
         try {
             String sql = EntityUtil.genQuerySqlWithParams(table, where, limit, null, entityClazz);
 
@@ -66,6 +67,75 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
                 e.printStackTrace();
             }
 
+            try {
+                if (stmt != null) stmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            if (conn != null) try {
+                conn.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return list;
+    }
+
+    public List<T> queryByParamWhere(String table, String where, List<List<?>> lstParams) {
+
+        if (table == null || table.trim().equals("")
+                || where == null || where.trim().equals("")
+                || lstParams == null || lstParams.size() == 0) {
+            throw new IllegalArgumentException();
+        }
+
+        List<T> list = new ArrayList<T>();
+
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        ResultSet rs = null;
+
+        try {
+            String sql = EntityUtil.genQuerySqlWithParams(table, where, null, null, entityClazz);
+
+            conn = dataSource.getConnection();
+            stmt = conn.prepareStatement(sql);
+
+            for (List<?> params : lstParams) {
+                int index = 1;
+                for (Object param : params) {
+                    stmt.setObject(index++, param);
+                }
+
+                try {
+                    rs = stmt.executeQuery();
+
+                    if (rs != null) {
+                        while (rs.next()) {
+                            T obj = EntityUtil.beanFromResultSet(rs, entityClazz);
+                            if (obj != null) list.add(obj);
+                        }
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (rs != null) rs.close();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } finally {
             try {
                 if (stmt != null) stmt.close();
             } catch (SQLException e) {

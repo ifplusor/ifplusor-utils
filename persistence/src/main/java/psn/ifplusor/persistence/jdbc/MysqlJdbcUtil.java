@@ -11,7 +11,7 @@ public class MysqlJdbcUtil {
     /**
      * 数据库驱动类名称
      */
-    public static final String DRIVER = "com.mysql.jdbc.Driver";
+    public static final String DRIVER = "com.mysql.cj.jdbc.Driver";
 
     public static String getJdbcUrl(String ip, String port, String database, String other) {
 
