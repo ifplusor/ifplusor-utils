@@ -142,8 +142,8 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
                 e.printStackTrace();
             }
 
-            if (conn != null) try {
-                conn.close();
+            try {
+                if (conn != null) conn.close();
             } catch (SQLException e) {
                 e.printStackTrace();
             }
