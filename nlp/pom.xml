@@ -13,6 +13,7 @@
 	</parent>
 
 	<artifactId>ifplusor-nlp</artifactId>
+	<packaging>jar</packaging>
 
 	<properties>
 		<IKAnalyzer.version>2016_FS</IKAnalyzer.version>

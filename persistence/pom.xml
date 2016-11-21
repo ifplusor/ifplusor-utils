@@ -13,6 +13,7 @@
 	</parent>
 
 	<artifactId>ifplusor-persistence</artifactId>
+	<packaging>jar</packaging>
 
 	<properties>
 		<jpa.version>2.1.1</jpa.version>
