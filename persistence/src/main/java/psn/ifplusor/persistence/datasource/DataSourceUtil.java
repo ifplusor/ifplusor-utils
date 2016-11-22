@@ -21,7 +21,7 @@ public class DataSourceUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(DataSourceUtil.class);
 
-    public static DataSource getMysqlDataSource(String ip, String port, String database, String username, String password)
+    public static DataSource getMysqlDataSource(String ip, int port, String database, String username, String password)
             throws PropertyVetoException {
 
         if (logger.isDebugEnabled()) {

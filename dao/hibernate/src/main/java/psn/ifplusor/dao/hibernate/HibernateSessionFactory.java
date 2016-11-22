@@ -38,7 +38,7 @@ public class HibernateSessionFactory {
 	 * @param path the configure file path for build factory.
 	 */
 	public static void registerSessionFactory(String key, String path) {
-		if (key == null || !"".equals(key.trim()) || path == null || !"".equals(path.trim())) {
+		if (key == null || "".equals(key.trim()) || path == null || "".equals(path.trim())) {
 			throw new IllegalArgumentException("Invalid Argument");
 		}
 		File configFile = new File(path);

@@ -13,7 +13,7 @@ public class MysqlJdbcUtil {
      */
     public static final String DRIVER = "com.mysql.cj.jdbc.Driver";
 
-    public static String getJdbcUrl(String ip, String port, String database, String other) {
+    public static String getJdbcUrl(String ip, int port, String database, String other) {
 
         StringBuilder jdbcUrl = new StringBuilder();
 
@@ -28,7 +28,7 @@ public class MysqlJdbcUtil {
         return jdbcUrl.toString();
     }
 
-    public static Connection getConnection(String ip, String port, String database, String username, String password) {
+    public static Connection getConnection(String ip, int port, String database, String username, String password) {
         try {
             // 加载数据库驱动程序
             Class.forName(DRIVER);
