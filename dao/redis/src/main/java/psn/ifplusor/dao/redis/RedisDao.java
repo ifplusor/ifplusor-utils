@@ -8,6 +8,8 @@ public interface RedisDao {
 
     String get(int index, String key);
 
+    void set(int index, String key, String value);
+
     String pop(int index, String key);
 
     void push(int index, String key, String value);

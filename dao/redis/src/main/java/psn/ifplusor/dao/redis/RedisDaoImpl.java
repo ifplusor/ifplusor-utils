@@ -27,6 +27,20 @@ public class RedisDaoImpl implements RedisDao {
         }
     }
 
+    public void set(int index, String key, String value) {
+        boolean broken = false;
+        Jedis jedis = null;
+        try {
+            jedis = JedisFactory.getJedis(daoKey);
+            String status = jedis.set(key, value);
+        } catch (JedisException e) {
+            broken = JedisFactory.isBroken(e);
+            e.printStackTrace();
+        } finally {
+            JedisFactory.returnJedis(daoKey, jedis, broken);
+        }
+    }
+
     public String pop(int index, String key) {
         boolean broken = false;
         String status = null;
