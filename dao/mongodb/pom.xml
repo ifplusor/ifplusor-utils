@@ -6,25 +6,23 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
+        <artifactId>ifplusor-dao</artifactId>
         <groupId>psn.ifplusor</groupId>
-        <artifactId>ifplusor-utils</artifactId>
         <version>0.1</version>
-        <relativePath>../</relativePath>
     </parent>
 
-    <artifactId>ifplusor-dao</artifactId>
-    <packaging>pom</packaging>
+    <artifactId>ifplusor-mongodb</artifactId>
+    <packaging>jar</packaging>
 
-    <modules>
-        <module>hibernate</module>
-        <module>redis</module>
-        <module>mongodb</module>
-    </modules>
+    <properties>
+        <mongodb.version>3.4.0</mongodb.version>
+    </properties>
 
     <dependencies>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongodb-driver</artifactId>
+            <version>${mongodb.version}</version>
         </dependency>
     </dependencies>
 
