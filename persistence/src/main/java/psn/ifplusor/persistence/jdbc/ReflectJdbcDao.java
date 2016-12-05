@@ -29,7 +29,19 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
         this.entityClazz = entityClazz;
     }
 
-    public List<T> query(String table, String where, Integer limit) {
+    public List<T> query(String table) {
+        return query(table, null, null, null);
+    }
+
+    public List<T> query(String table, String where) {
+        return query(table, where, null, null);
+    }
+
+    public List<T> query(String table, String where, String orderBy) {
+        return query(table, where, orderBy, null);
+    }
+
+    public List<T> query(String table, String where, String orderBy, String limit) {
 //		System.out.println("Creating statement...");
 
         if (table == null || table.trim().equals(""))
@@ -42,7 +54,7 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
         ResultSet rs = null;
 
         try {
-            String sql = EntityUtil.genQuerySqlWithParams(table, where, limit, null, entityClazz);
+            String sql = EntityUtil.genQuerySqlWithParams(table, where, orderBy, limit, null, entityClazz);
 
             conn = dataSource.getConnection();
             stmt = conn.createStatement();
@@ -98,7 +110,7 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
         ResultSet rs = null;
 
         try {
-            String sql = EntityUtil.genQuerySqlWithParams(table, where, null, null, entityClazz);
+            String sql = EntityUtil.genQuerySqlWithParams(table, where, null, null, null, entityClazz);
 
             conn = dataSource.getConnection();
             stmt = conn.prepareStatement(sql);
@@ -272,7 +284,7 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
                 List<List<Object>> lstRs = new ArrayList<List<Object>>();
                 while (rs.next()) {
                     List<Object> lst = new ArrayList<Object>();
-                    for (int i = 0; i < columnCount; i++) {
+                    for (int i = 1; i <= columnCount; i++) {
                         switch (rsmd.getColumnType(i)) {
                             case Types.INTEGER:
                                 lst.add(rs.getInt(i));

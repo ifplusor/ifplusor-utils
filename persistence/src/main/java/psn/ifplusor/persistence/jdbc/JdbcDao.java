@@ -9,7 +9,11 @@ import java.util.List;
  */
 public interface JdbcDao <T> {
 
-    List<T> query(String table, String where, Integer limit);
+    List<T> query(String table);
+    List<T> query(String table, String where);
+    List<T> query(String table, String where, String orderBy);
+    List<T> query(String table, String where, String orderBy, String limit);
+
     List<T> queryByParamWhere(String table, String where, List<List<?>> lstParams);
 
     int insert(String table, T obj);

@@ -49,16 +49,29 @@ public class DelegateJdbcDao<T> implements JdbcDao<T> {
         this.impl = new ReflectJdbcDao<T>(dataSource, entityClazz);
     }
 
-    public List<T> query(String table, String where, Integer limit) {
-//		System.out.println("Creating statement...");
+    public List<T> query(String table) {
+        return query(table, null, null, null);
+    }
+
+    public List<T> query(String table, String where) {
+        return query(table, where, null, null);
+    }
+
+    public List<T> query(String table, String where, String orderBy) {
+        return query(table, where, orderBy, null);
+    }
+
+    public List<T> query(String table, String where, String orderBy, String limit) {
 
         if (table == null || table.trim().equals(""))
             throw new IllegalArgumentException();
 
         String sql = "select " + delegate.select().trim() + " from " + table.trim();
-        if (where != null && !where.trim().equals(""))
+        if (where != null && !"".equals(where.trim()))
             sql += " where " + where;
-        if (limit != null && limit > 0)
+        if (orderBy != null && !"".equals(orderBy.trim()))
+            sql += " order by " + orderBy;
+        if (limit != null && !"".equals(limit.trim()))
             sql += " limit " + limit;
 
         List<T> list = new ArrayList<T>();

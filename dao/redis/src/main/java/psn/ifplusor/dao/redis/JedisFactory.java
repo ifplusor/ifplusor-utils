@@ -29,6 +29,7 @@ public class JedisFactory {
     private static final HashMap<String, JedisPool> htJedisPool = new HashMap<String, JedisPool>();
     private static final HashMap<String, JedisConfig> htJedisConfig = new HashMap<String, JedisConfig>();
 
+    private JedisFactory() { }
 
     public static void registerJedisPool(String key, String host) {
         registerJedisPool(key, host, 6379);

@@ -227,7 +227,8 @@ public class EntityUtil {
 		return sql.toString();
 	}
 
-	public static <T> String genQuerySqlWithParams(String table, String where, Integer limit, Set<String> exColumn, Class<T> clazz) throws SQLException {
+	public static <T> String genQuerySqlWithParams(String table, String where, String orderBy, String limit,
+												   Set<String> exColumn, Class<T> clazz) throws SQLException {
 
 		if (table == null || table.trim().length() == 0) {
 			throw new SQLException("Table could not null or empty!");
@@ -257,7 +258,11 @@ public class EntityUtil {
 			sql.append(" WHERE ").append(where);
 		}
 
-		if (limit != null && limit > 0) {
+		if (orderBy != null && orderBy.trim().length() != 0) {
+			sql.append(" ORDER BY ").append(orderBy);
+		}
+
+		if (limit != null && limit.trim().length() != 0) {
 			sql.append(" LIMIT ").append(limit);
 		}
 

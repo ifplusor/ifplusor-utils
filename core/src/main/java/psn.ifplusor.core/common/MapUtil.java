@@ -36,4 +36,28 @@ public class MapUtil {
             e.printStackTrace();
         }
     }
+
+    public static <K> void addToCountMap(Map<K, Integer> map, K key, Integer count) {
+
+        if (key == null) {
+            return;
+        }
+
+        if (!map.containsKey(key)) {
+            map.put(key, count);
+        } else {
+            Integer oldCount = map.get(key);
+            if (oldCount == null) {
+                map.put(key, count);
+            } else if (count == null) {
+                map.put(key, null);
+            } else {
+                map.put(key, oldCount + count);
+            }
+        }
+    }
+
+    public static <K> void addToCountMap(Map<K, Integer> map, K key) {
+        addToCountMap(map, key, 1);
+    }
 }
