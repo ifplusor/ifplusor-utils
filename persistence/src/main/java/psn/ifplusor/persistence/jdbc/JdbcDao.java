@@ -16,6 +16,9 @@ public interface JdbcDao <T> {
 
     List<T> queryByParamWhere(String table, String where, List<List<?>> lstParams);
 
+    int insertOrUpdate(String table, T obj);
+    int insertOrUpdate(String table, List<T> lstObj);
+
     int insert(String table, T obj);
     int insert(String table, List<T> lstObj);
 

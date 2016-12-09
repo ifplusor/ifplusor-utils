@@ -119,6 +119,14 @@ public class DelegateJdbcDao<T> implements JdbcDao<T> {
         return impl.queryByParamWhere(table, where, lstParams);
     }
 
+    public int insertOrUpdate(String table, T obj) {
+        return impl.insertOrUpdate(table, obj);
+    }
+
+    public int insertOrUpdate(String table, List<T> lstObj) {
+        return impl.insertOrUpdate(table, lstObj);
+    }
+
     public int insert(String table, T obj) {
         return impl.insert(table, obj);
     }
