@@ -31,7 +31,8 @@ public class DataSourceUtil {
 
         ComboPooledDataSource dataSource = new ComboPooledDataSource();
         dataSource.setDriverClass(MysqlJdbcUtil.DRIVER);
-        dataSource.setJdbcUrl(MysqlJdbcUtil.getJdbcUrl(ip, port, database, "useUnicode=true&characterEncoding=UTF8"));
+        dataSource.setJdbcUrl(MysqlJdbcUtil.getJdbcUrl(ip, port, database,
+                "useUnicode=true&characterEncoding=UTF8&rewriteBatchedStatements=true"));
         dataSource.setUser(username);
         dataSource.setPassword(password);
 

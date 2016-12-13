@@ -1,5 +1,7 @@
 package psn.ifplusor.persistence.jdbc;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import psn.ifplusor.persistence.entity.EntityUtil;
 
 import javax.sql.DataSource;
@@ -15,6 +17,8 @@ import java.util.Set;
  * @version 10/12/16
  */
 public class ReflectJdbcDao<T> implements JdbcDao<T> {
+
+    Logger logger = LoggerFactory.getLogger(ReflectJdbcDao.class);
 
     protected final DataSource dataSource;
     protected final Class<T> entityClazz;
@@ -95,6 +99,23 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
         return list;
     }
 
+    private static final int BATCH_SIZE[] = {51, 11, 4, 1};
+
+    private static String replicateWhere(String where, int count) {
+
+        if (count <= 1) {
+            return where;
+        }
+
+        StringBuilder target = new StringBuilder();
+        while (--count > 0) {
+            target.append("(").append(where).append(") or ");
+        }
+        target.append("(").append(where).append(")");
+
+        return target.toString();
+    }
+
     public List<T> queryByParamWhere(String table, String where, List<List<?>> lstParams) {
 
         if (table == null || table.trim().equals("")
@@ -110,37 +131,62 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
         ResultSet rs = null;
 
         try {
-            String sql = EntityUtil.genQuerySqlWithParams(table, where, null, null, null, entityClazz);
+            int leave = lstParams.size();
+            int idx = 0;
 
             conn = dataSource.getConnection();
-            stmt = conn.prepareStatement(sql);
 
-            for (List<?> params : lstParams) {
-                int index = 1;
-                for (Object param : params) {
-                    stmt.setObject(index++, param);
-                }
-
-                try {
-                    rs = stmt.executeQuery();
-
-                    if (rs != null) {
-                        while (rs.next()) {
-                            T obj = EntityUtil.beanFromResultSet(rs, entityClazz);
-                            if (obj != null) list.add(obj);
-                        }
-                    }
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                } finally {
+            for (int i = 0; i < BATCH_SIZE.length; i++) {
+                if (leave >= BATCH_SIZE[i]) {
                     try {
-                        if (rs != null) rs.close();
+                        String sql = EntityUtil.genQuerySqlWithParams(table, replicateWhere(where, BATCH_SIZE[i]),
+                                null, null, null, entityClazz);
+                        stmt = conn.prepareStatement(sql);
+
+                        while (leave >= BATCH_SIZE[i]) {
+                            int index = 1;
+                            for (int j = 0; j < BATCH_SIZE[i]; j++) {
+                                List<?> params = lstParams.get(idx++);
+                                for (Object param : params) {
+                                    stmt.setObject(index++, param);
+                                }
+                            }
+
+                            try {
+                                rs = stmt.executeQuery();
+
+                                if (rs != null) {
+                                    while (rs.next()) {
+                                        T obj = EntityUtil.beanFromResultSet(rs, entityClazz);
+                                        if (obj != null) list.add(obj);
+                                    }
+                                }
+                            } catch (SQLException e) {
+                                e.printStackTrace();
+                            } finally {
+                                try {
+                                    if (rs != null) rs.close();
+                                } catch (SQLException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+
+                            leave -= BATCH_SIZE[i];
+                        }
                     } catch (SQLException e) {
                         e.printStackTrace();
+                    } finally {
+                        try {
+                            if (stmt != null) {
+                                stmt.close();
+                                stmt = null;
+                            }
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                        }
                     }
                 }
             }
-
         } catch (SQLException e) {
             e.printStackTrace();
         } catch (InstantiationException e) {
@@ -148,6 +194,12 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         } finally {
+            try {
+                if (rs != null) rs.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
             try {
                 if (stmt != null) stmt.close();
             } catch (SQLException e) {
@@ -301,7 +353,7 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
     public int insert(String table, List<T> lstObj) {
         Connection conn = null;
         PreparedStatement stmt = null;
-        int count = 0;
+        int count = 0, noInfo = 0, failed = 0;
 
         try {
             String sql = EntityUtil.genInsertSqlWithParams(table, null, entityClazz);
@@ -310,22 +362,49 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
             conn = dataSource.getConnection();
             stmt = conn.prepareStatement(sql);
 
-            for (T obj : lstObj) {
-                int index = 1;
-                for (EntityUtil.Property property : lstProperties) {
-                    stmt.setObject(index++, property.getGetter().invoke(obj));
+            int begin = 0, end = lstObj.size();
+            while (begin < end) {
+                for (int i = begin; i < end; i++) {
+                    T obj = lstObj.get(i);
+                    int index = 1;
+                    for (EntityUtil.Property property : lstProperties) {
+                        stmt.setObject(index++, property.getGetter().invoke(obj));
+                    }
+                    try {
+                        stmt.addBatch();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
                 }
-                try {
-                    stmt.addBatch();
-                    //count += stmt.executeUpdate();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
 
-            // 批量执行
-            for (int n : stmt.executeBatch()) {
-                count += n;
+                // 批量执行
+                try {
+                    for (int n : stmt.executeBatch()) {
+                        if (n == Statement.SUCCESS_NO_INFO) {
+                            noInfo++;
+                        } else if (n == Statement.EXECUTE_FAILED) {
+                            failed++;
+                        } else {
+                            count += n;
+                        }
+                    }
+                    break;
+                } catch (BatchUpdateException e) {
+                    e.printStackTrace();
+
+                    int[] rs = e.getUpdateCounts();
+                    for (int n : rs) {
+                        if (n == Statement.SUCCESS_NO_INFO) {
+                            noInfo++;
+                        } else if (n == Statement.EXECUTE_FAILED) {
+                            failed++;
+                        } else {
+                            count += n;
+                        }
+                    }
+                    begin += rs.length;
+                    stmt.clearBatch();
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -345,6 +424,10 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
             } catch (SQLException e) {
                 e.printStackTrace();
             }
+        }
+
+        if (noInfo > 0 || failed > 0) {
+            logger.warn("encounter error when excuteBatch. noInfo: {}, failed: {}.", noInfo, failed);
         }
 
         return count;
@@ -405,7 +488,7 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
     public int update(String table, List<T> lstObj) {
         Connection conn = null;
         PreparedStatement stmt = null;
-        int count = 0;
+        int count = 0, noInfo = 0, failed = 0;
 
         try {
             EntityUtil.Property id = EntityUtil.getIdProperty(entityClazz);
@@ -418,24 +501,51 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
             conn = dataSource.getConnection();
             stmt = conn.prepareStatement(sql);
 
-            for (T obj : lstObj) {
-                int index = 1;
-                for (EntityUtil.Property property : lstProperties) {
-                    if (exColumn.contains(property.getColumn())) continue;
-                    stmt.setObject(index++, property.getGetter().invoke(obj));
+            int begin = 0, end = lstObj.size();
+            while (begin < end) {
+                for (int i = begin; i < end; i++) {
+                    T obj = lstObj.get(i);
+                    int index = 1;
+                    for (EntityUtil.Property property : lstProperties) {
+                        if (exColumn.contains(property.getColumn())) continue;
+                        stmt.setObject(index++, property.getGetter().invoke(obj));
+                    }
+                    stmt.setObject(index, id.getGetter().invoke(obj));
+                    try {
+                        stmt.addBatch();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
                 }
-                stmt.setObject(index, id.getGetter().invoke(obj));
-                try {
-                    stmt.addBatch();
-//                count += stmt.executeUpdate();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
 
-            // 批量执行
-            for (int n : stmt.executeBatch()) {
-                count += n;
+                // 批量执行
+                try {
+                    for (int n : stmt.executeBatch()) {
+                        if (n == Statement.SUCCESS_NO_INFO) {
+                            noInfo++;
+                        } else if (n == Statement.EXECUTE_FAILED) {
+                            failed++;
+                        } else {
+                            count += n;
+                        }
+                    }
+                    break;
+                } catch (BatchUpdateException e) {
+                    e.printStackTrace();
+
+                    int[] rs = e.getUpdateCounts();
+                    for (int n : rs) {
+                        if (n == Statement.SUCCESS_NO_INFO) {
+                            noInfo++;
+                        } else if (n == Statement.EXECUTE_FAILED) {
+                            failed++;
+                        } else {
+                            count += n;
+                        }
+                    }
+                    begin += rs.length;
+                    stmt.clearBatch();
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -457,6 +567,10 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
             } catch (SQLException e) {
                 e.printStackTrace();
             }
+        }
+
+        if (noInfo > 0 || failed > 0) {
+            logger.warn("encounter error when excuteBatch. noInfo: {}, failed: {}.", noInfo, failed);
         }
 
         return count;

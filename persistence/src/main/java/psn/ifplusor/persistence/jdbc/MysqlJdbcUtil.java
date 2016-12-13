@@ -33,7 +33,7 @@ public class MysqlJdbcUtil {
             // 加载数据库驱动程序
             Class.forName(DRIVER);
 
-            String url = getJdbcUrl(ip, port, database, "useUnicode=true&characterEncoding=UTF8");
+            String url = getJdbcUrl(ip, port, database, "useUnicode=true&characterEncoding=UTF8&rewriteBatchedStatements=true");
 
             // 获取连接
             DriverManager.setLoginTimeout(1);
