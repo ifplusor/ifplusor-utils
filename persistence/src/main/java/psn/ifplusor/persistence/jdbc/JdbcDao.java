@@ -25,5 +25,8 @@ public interface JdbcDao <T> {
     int update(String table, T obj);
     int update(String table, List<T> lstObj);
 
+    int delete(String table, T obj);
+    int delete(String table, List<T> lstObj);
+
     Object execute(String sql) throws SQLException;
 }

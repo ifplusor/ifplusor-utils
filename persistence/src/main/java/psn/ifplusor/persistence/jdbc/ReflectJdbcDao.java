@@ -223,6 +223,9 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
     }
 
     public int insertOrUpdate(String table, List<T> lstObj) {
+        if (lstObj.size() == 0) {
+            return 0;
+        }
 
         EntityUtil.Property id = null;
         try {
@@ -351,6 +354,10 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
     }
 
     public int insert(String table, List<T> lstObj) {
+        if (lstObj.size() == 0) {
+            return 0;
+        }
+
         Connection conn = null;
         PreparedStatement stmt = null;
         int count = 0, noInfo = 0, failed = 0;
@@ -486,6 +493,10 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
     }
 
     public int update(String table, List<T> lstObj) {
+        if (lstObj.size() == 0) {
+            return 0;
+        }
+
         Connection conn = null;
         PreparedStatement stmt = null;
         int count = 0, noInfo = 0, failed = 0;
@@ -512,6 +523,171 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
                     }
                     stmt.setObject(index, id.getGetter().invoke(obj));
                     try {
+                        stmt.addBatch();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                // 批量执行
+                try {
+                    for (int n : stmt.executeBatch()) {
+                        if (n == Statement.SUCCESS_NO_INFO) {
+                            noInfo++;
+                        } else if (n == Statement.EXECUTE_FAILED) {
+                            failed++;
+                        } else {
+                            count += n;
+                        }
+                    }
+                    break;
+                } catch (BatchUpdateException e) {
+                    e.printStackTrace();
+
+                    int[] rs = e.getUpdateCounts();
+                    for (int n : rs) {
+                        if (n == Statement.SUCCESS_NO_INFO) {
+                            noInfo++;
+                        } else if (n == Statement.EXECUTE_FAILED) {
+                            failed++;
+                        } else {
+                            count += n;
+                        }
+                    }
+                    begin += rs.length;
+                    stmt.clearBatch();
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (stmt != null) stmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            try {
+                if (conn != null) conn.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
+        if (noInfo > 0 || failed > 0) {
+            logger.warn("encounter error when excuteBatch. noInfo: {}, failed: {}.", noInfo, failed);
+        }
+
+        return count;
+    }
+
+    public int delete(String table, T obj) {
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        int count = 0;
+
+        try {
+            EntityUtil.Property id = EntityUtil.getIdProperty(entityClazz);
+            String sql = "DELETE FROM " + table + " WHERE " + id.getColumn() + "=?";
+
+            conn = dataSource.getConnection();
+            stmt = conn.prepareStatement(sql);
+            stmt.setObject(1, id.getGetter().invoke(obj));
+            count += stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (stmt != null) stmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            try {
+                if (conn != null) conn.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return count;
+    }
+
+    public int delete(String table, List<T> lstObj) {
+        if (lstObj.size() == 0) {
+            return 0;
+        }
+
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        int count = 0, noInfo = 0, failed = 0;
+
+        try {
+            EntityUtil.Property id = EntityUtil.getIdProperty(entityClazz);
+
+            conn = dataSource.getConnection();
+
+            /*int leave = lstObj.size();
+            int idx = 0;
+
+            for (int i = 0; i < BATCH_SIZE.length; i++) {
+                if (leave >= BATCH_SIZE[i]) {
+                    try {
+                        String sql = "DELETE FROM " + table + " WHERE "
+                                + replicateWhere(id.getColumn() + "=?", BATCH_SIZE[i]);
+
+                        stmt = conn.prepareStatement(sql);
+
+                        while (leave >= BATCH_SIZE[i]) {
+                            for (int j = 0; j < BATCH_SIZE[i]; j++) {
+                                T obj = lstObj.get(idx++);
+                                stmt.setObject(1, id.getGetter().invoke(obj));
+                            }
+
+                            try {
+                                count += stmt.executeUpdate();
+                            } catch (SQLException e) {
+                                e.printStackTrace();
+                            }
+
+                            leave -= BATCH_SIZE[i];
+                        }
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    } finally {
+                        try {
+                            if (stmt != null) {
+                                stmt.close();
+                                stmt = null;
+                            }
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }*/
+
+            String sql = "DELETE FROM " + table + " WHERE " + id.getColumn() + "=?";
+            stmt = conn.prepareStatement(sql);
+
+            int begin = 0, end = lstObj.size();
+            while (begin < end) {
+                for (int i = begin; i < end; i++) {
+                    try {
+                        T obj = lstObj.get(i);
+                        stmt.setObject(1, id.getGetter().invoke(obj));
                         stmt.addBatch();
                     } catch (SQLException e) {
                         e.printStackTrace();

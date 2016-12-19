@@ -143,6 +143,14 @@ public class DelegateJdbcDao<T> implements JdbcDao<T> {
         return impl.update(table, lstObj);
     }
 
+    public int delete(String table, T obj) {
+        return impl.delete(table, obj);
+    }
+
+    public int delete(String table, List<T> lstObj) {
+        return impl.delete(table, lstObj);
+    }
+
     public Object execute(String sql) throws SQLException {
         return impl.execute(sql);
     }
