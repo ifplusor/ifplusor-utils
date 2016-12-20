@@ -3,6 +3,7 @@ package psn.ifplusor.core.common;
 import java.io.*;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.charset.Charset;
 
 /**
  * @author james
@@ -167,5 +168,20 @@ public class FileUtil {
                 }
             }
         }
+    }
+
+    public static String read(InputStream is, Charset charset) {
+        try {
+            InputStreamReader isr = new InputStreamReader(is, charset);
+            StringBuilder sbread = new StringBuilder();
+            while (isr.ready()) {
+                sbread.append((char) isr.read());
+            }
+            isr.close();
+            return sbread.toString();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "";
     }
 }
