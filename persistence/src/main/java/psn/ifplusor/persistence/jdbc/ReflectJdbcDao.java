@@ -2,6 +2,7 @@ package psn.ifplusor.persistence.jdbc;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.sqlite.SQLiteDataSource;
 import psn.ifplusor.persistence.entity.EntityUtil;
 
 import javax.sql.DataSource;
@@ -367,6 +368,14 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
             List<EntityUtil.Property> lstProperties = EntityUtil.getColumnProperties(entityClazz);
 
             conn = dataSource.getConnection();
+            if (dataSource instanceof SQLiteDataSource) {
+                /*
+                   对SQLite的插入插入操作，使用事务会获得加速效果
+                   > 关闭写同步可以进一步提高速度
+                 */
+                conn.setAutoCommit(false);
+            }
+
             stmt = conn.prepareStatement(sql);
 
             int begin = 0, end = lstObj.size();
@@ -413,13 +422,32 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
                     stmt.clearBatch();
                 }
             }
+
+            if (dataSource instanceof SQLiteDataSource) {
+                conn.commit();
+            }
         } catch (SQLException e) {
+            if (dataSource instanceof SQLiteDataSource) {
+                try {
+                    conn.rollback();
+                } catch (SQLException e1) {
+                    e1.printStackTrace();
+                }
+            }
             e.printStackTrace();
         } catch (InvocationTargetException e) {
             e.printStackTrace();
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         } finally {
+            if (dataSource instanceof SQLiteDataSource) {
+                try {
+                    if (conn != null) conn.setAutoCommit(true);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+
             try {
                 if (stmt != null) stmt.close();
             } catch (SQLException e) {

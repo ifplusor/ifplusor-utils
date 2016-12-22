@@ -3,15 +3,12 @@ package psn.ifplusor.persistence.datasource;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.sqlite.SQLiteDataSource;
 import psn.ifplusor.persistence.jdbc.MysqlJdbcUtil;
 import psn.ifplusor.persistence.jdbc.SqliteJdbcUtil;
 
 import javax.sql.DataSource;
 import java.beans.PropertyVetoException;
-import java.io.PrintWriter;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
 
 /**
  * @author james
@@ -49,44 +46,9 @@ public class DataSourceUtil {
             logger.debug("Create default DataSource for SQLite. path: {}", path);
         }
 
-        return new DataSource() {
-
-            public Connection getConnection() throws SQLException {
-                return SqliteJdbcUtil.getConnection(path);
-            }
-
-            public Connection getConnection(String s, String s1) throws SQLException {
-                return null;
-            }
-
-            public <T> T unwrap(Class<T> aClass) throws SQLException {
-                return null;
-            }
-
-            public boolean isWrapperFor(Class<?> aClass) throws SQLException {
-                return false;
-            }
-
-            public PrintWriter getLogWriter() throws SQLException {
-                return null;
-            }
-
-            public void setLogWriter(PrintWriter printWriter) throws SQLException {
-
-            }
-
-            public void setLoginTimeout(int i) throws SQLException {
-
-            }
-
-            public int getLoginTimeout() throws SQLException {
-                return 0;
-            }
-
-            public java.util.logging.Logger getParentLogger() throws SQLFeatureNotSupportedException {
-                return null;
-            }
-        };
+        SQLiteDataSource dataSource = new SQLiteDataSource();
+        dataSource.setUrl(SqliteJdbcUtil.getJdbcUrl(path));
+        return dataSource;
     }
 
     public static void close(DataSource dataSource) {
@@ -98,6 +60,8 @@ public class DataSourceUtil {
         if (dataSource instanceof ComboPooledDataSource) {
             final ComboPooledDataSource comboPooledDataSource = (ComboPooledDataSource) dataSource;
             comboPooledDataSource.close();
+        } else if (dataSource instanceof SQLiteDataSource) {
+            final SQLiteDataSource sqliteDataSource = (SQLiteDataSource) dataSource;
         }
     }
 }

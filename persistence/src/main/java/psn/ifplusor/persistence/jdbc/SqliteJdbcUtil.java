@@ -16,7 +16,7 @@ public class SqliteJdbcUtil {
 
         StringBuilder jdbcUrl = new StringBuilder();
 
-        jdbcUrl.append("jdbc:sqlite://").append(path);
+        jdbcUrl.append("jdbc:sqlite:").append(path);
 
         return jdbcUrl.toString();
     }

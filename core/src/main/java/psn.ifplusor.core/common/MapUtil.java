@@ -10,31 +10,34 @@ import java.util.Map;
  */
 public class MapUtil {
 
-    public static <K, V> void addToListMap(Map<K, List<V>> map, K key, V value, Class<? extends List> clazz)
+    public static <K, V> int addToListMap(Map<K, List<V>> map, K key, V value, Class<? extends List> clazz)
             throws IllegalAccessException, InstantiationException {
 
         if (key == null || value == null) {
-            return;
+            return -1;
         }
 
         if (!map.containsKey(key)) {
             List<V> list = clazz.newInstance();
             list.add(value);
             map.put(key, list);
+            return 1;
         } else {
             List<V> lst = map.get(key);
             lst.add(value);
+            return lst.size();
         }
     }
 
-    public static <K, V> void addToListMap(Map<K, List<V>> map, K key, V value) {
+    public static <K, V> int addToListMap(Map<K, List<V>> map, K key, V value) {
         try {
-            addToListMap(map, key, value, ArrayList.class);
+            return addToListMap(map, key, value, ArrayList.class);
         } catch (InstantiationException e) {
             e.printStackTrace();
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         }
+        return -1;
     }
 
     public static <K> void addToCountMap(Map<K, Integer> map, K key, Integer count) {
