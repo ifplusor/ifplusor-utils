@@ -269,13 +269,10 @@ public class EntityUtil {
 		return sql.toString();
 	}
 
-	public static <T> T beanFromResultSet(ResultSet rs, Class<T> clazz)
-			throws IllegalAccessException, InstantiationException {
+	public static <T> T beanFromResultSet(ResultSet rs, T obj, Class<T> clazz) throws IllegalAccessException {
 
-		if (rs == null || clazz == null)
+		if (rs == null || obj == null || clazz == null)
 			throw new IllegalArgumentException();
-
-		T obj = clazz.newInstance();
 
 		List<Property> lstProperties = getColumnProperties(clazz);
 
@@ -338,5 +335,16 @@ public class EntityUtil {
 		}
 
 		return obj;
+	}
+
+	public static <T> T beanFromResultSet(ResultSet rs, Class<T> clazz)
+			throws IllegalAccessException, InstantiationException {
+
+		if (rs == null || clazz == null)
+			throw new IllegalArgumentException();
+
+		T obj = clazz.newInstance();
+
+		return beanFromResultSet(rs, obj, clazz);
 	}
 }

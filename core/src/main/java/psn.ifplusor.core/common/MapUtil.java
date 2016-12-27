@@ -10,6 +10,12 @@ import java.util.Map;
  */
 public class MapUtil {
 
+    private static int capacity = 10;
+
+    public static void setInitialCapacity(int capacity) {
+        MapUtil.capacity = capacity;
+    }
+
     public static <K, V> int addToListMap(Map<K, List<V>> map, K key, V value, Class<? extends List> clazz)
             throws IllegalAccessException, InstantiationException {
 
@@ -18,7 +24,12 @@ public class MapUtil {
         }
 
         if (!map.containsKey(key)) {
-            List<V> list = clazz.newInstance();
+            List<V> list = null;
+            if (clazz.equals(ArrayList.class)) {
+                list = new ArrayList<V>(capacity);
+            } else {
+                list = clazz.newInstance();
+            }
             list.add(value);
             map.put(key, list);
             return 1;
