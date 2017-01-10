@@ -33,6 +33,10 @@ public class DataSourceUtil {
         dataSource.setUser(username);
         dataSource.setPassword(password);
 
+        // c3p0配置
+        dataSource.setMaxIdleTime(300);
+        dataSource.setPreferredTestQuery("SELECT 1");
+
         return dataSource;
     }
 
