@@ -8,16 +8,24 @@ import java.io.Reader;
 import java.io.StringReader;
 
 public class CharacterSegment {
-	
+
+	private static final ThreadLocal<IKSegmenter> threadSegmenter = new ThreadLocal<IKSegmenter>();
+
 	public static String segment(String content) {
-		
-		String keywords = "";
-		
+
 		Reader in = new StringReader(content);
-		IKSegmenter _IKImplement = new IKSegmenter(in , true);
-		
-		Lexeme nextLexeme = null;
+		IKSegmenter _IKImplement = threadSegmenter.get();
+		if (_IKImplement == null) {
+			_IKImplement = new IKSegmenter(in, true);
+			threadSegmenter.set(_IKImplement);
+		} else {
+			_IKImplement.reset(in);
+		}
+
+		String keywords = "";
+
 		try {
+			Lexeme nextLexeme = null;
 			while ((nextLexeme = _IKImplement.next()) != null) {
 				keywords = keywords + nextLexeme.getLexemeText() + "#";
 			}
