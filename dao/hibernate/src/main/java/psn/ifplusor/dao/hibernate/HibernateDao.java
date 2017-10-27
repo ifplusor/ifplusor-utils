@@ -4,19 +4,19 @@ import java.util.List;
 
 public interface HibernateDao {
 
-    Boolean insert(Object o, String id, Boolean bSave);
+    boolean insert(Object o, boolean useCache);
 
-    Boolean update(Object o, String id, Boolean bSave);
+    boolean update(Object o, boolean useCache);
 
-    Boolean delete(Object o);
+    boolean delete(Object o);
 
-    int delete(String hsql);
+    int delete(String hql);
 
-    List SearchList(String hsql);
+    List SearchList(String hql);
 
-    List SearchListByLimit(String hsql, int nBegin, int nEnd);
+    List SearchListByLimit(String hql, int nBegin, int nEnd);
 
-    Object SearchListOne(String hsql);
+    Object SearchListOne(String hql);
 
-    Integer SearchListCount(String hsql);
+    Integer SearchListCount(String hql);
 }

@@ -8,7 +8,7 @@
     <parent>
         <groupId>psn.ifplusor</groupId>
         <artifactId>ifplusor-dao</artifactId>
-        <version>0.1</version>
+        <version>0.2</version>
         <relativePath>../</relativePath>
     </parent>
 
@@ -20,6 +20,11 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>psn.ifplusor</groupId>
+            <artifactId>ifplusor-core</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.hibernate</groupId>
             <artifactId>hibernate-core</artifactId>

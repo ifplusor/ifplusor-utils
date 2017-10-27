@@ -1,11 +1,10 @@
-package psn.ifplusor.core.common;
+package psn.ifplusor.core.utils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,8 +16,10 @@ public class DateUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(DateUtil.class);
 
-    public static final long DAYMILLISEC = 24 * 60 * 60 * 1000;	// the number of millisecond for one day
-    public static final long HOURMILLISEC = 60 * 60 * 1000;
+    public static final long DAY_MILLISECONDS = 24 * 60 * 60 * 1000;    // the number of milliseconds for one day
+    public static final long HOUR_MILLISECONDS = 60 * 60 * 1000;
+
+    private DateUtil() {}
 
     /*
         SimpleDateFormat函数语法：
@@ -71,10 +72,10 @@ public class DateUtil {
     public static Date parse(final String date, final String format)
             throws Exception {
         if (date == null) {
-            throw new Exception("参数date不能为空！");
+            throw new IllegalArgumentException("参数date不能为空！");
         }
         if (format == null) {
-            throw new Exception("参数format不能为空！");
+            throw new IllegalArgumentException("参数format不能为空！");
         }
 
         try {
@@ -86,15 +87,15 @@ public class DateUtil {
 
     /**
      * @param format "example:yyyy/MM/dd"
-     * @throws Exception 如果参数错误或解析错误，抛出此异常
+     * @throws IllegalArgumentException 如果参数错误或解析错误，抛出此异常
      */
     public static String format(final Date date, final String format)
-            throws Exception {
+            throws IllegalArgumentException {
         if (date == null) {
-            throw new Exception("参数date不能为空！");
+            throw new IllegalArgumentException("参数date不能为空！");
         }
         if (format == null) {
-            throw new Exception("参数format不能为空！");
+            throw new IllegalArgumentException("参数format不能为空！");
         }
 
         return getDateFormat(format).format(date);

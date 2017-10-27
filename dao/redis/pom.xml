@@ -8,7 +8,7 @@
     <parent>
         <groupId>psn.ifplusor</groupId>
         <artifactId>ifplusor-dao</artifactId>
-        <version>0.1</version>
+        <version>0.2</version>
         <relativePath>../</relativePath>
     </parent>
 
@@ -16,7 +16,7 @@
     <packaging>jar</packaging>
 
     <properties>
-        <jedis.version>2.0.0</jedis.version>
+        <jedis.version>2.9.0</jedis.version>
     </properties>
 
     <dependencies>
@@ -24,6 +24,10 @@
             <groupId>redis.clients</groupId>
             <artifactId>jedis</artifactId>
             <version>${jedis.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>psn.ifplusor</groupId>
+            <artifactId>ifplusor-core</artifactId>
         </dependency>
     </dependencies>
 

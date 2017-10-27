@@ -1,98 +1,113 @@
 package psn.ifplusor.dao.redis;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.exceptions.JedisException;
 
 public class RedisDaoImpl implements RedisDao {
 
-    private String daoKey;
+    private static final Logger logger = LoggerFactory.getLogger(RedisDaoImpl.class);
+
+    private final String daoKey;
 
     public RedisDaoImpl(String key) {
         daoKey = key;
     }
 
     public String get(int index, String key) {
-        boolean broken = false;
         Jedis jedis = null;
         try {
             jedis = JedisFactory.getJedis(daoKey);
             String status = jedis.select(index);
             return jedis.get(key);
-        } catch (JedisException e) {
-            broken = JedisFactory.isBroken(e);
-            e.printStackTrace();
-            return null;
         } finally {
-            JedisFactory.returnJedis(daoKey, jedis, broken);
+            if (jedis != null) jedis.close();
         }
     }
 
     public void set(int index, String key, String value) {
-        boolean broken = false;
         Jedis jedis = null;
         try {
             jedis = JedisFactory.getJedis(daoKey);
             String status = jedis.set(key, value);
-        } catch (JedisException e) {
-            broken = JedisFactory.isBroken(e);
-            e.printStackTrace();
         } finally {
-            JedisFactory.returnJedis(daoKey, jedis, broken);
+            if (jedis != null) jedis.close();
         }
     }
 
-    public String pop(int index, String key) {
-        boolean broken = false;
+    public String lpop(int index, String key) {
         String status = null;
         Jedis jedis = null;
         try {
             jedis = JedisFactory.getJedis(daoKey);
             status = jedis.select(index);
             return jedis.lpop(key);
-        } catch (JedisException e) {
-            broken = JedisFactory.isBroken(e);
-            e.printStackTrace();
-            return null;
         } finally {
-            JedisFactory.returnJedis(daoKey, jedis, broken);
+            if (jedis != null) jedis.close();
         }
     }
 
-    public void push(int index, String key, String value) {
-        boolean broken = false;
+    public String rpop(int index, String key) {
+        String status = null;
+        Jedis jedis = null;
+        try {
+            jedis = JedisFactory.getJedis(daoKey);
+            status = jedis.select(index);
+            return jedis.rpop(key);
+        } finally {
+            if (jedis != null) jedis.close();
+        }
+    }
+
+    public void lpush(int index, String key, String value) {
         String status = null;
         Jedis jedis = null;
         try {
             jedis = JedisFactory.getJedis(daoKey);
             status = jedis.select(index);
             jedis.lpush(key, value);
-        } catch (JedisException e) {
-            broken = JedisFactory.isBroken(e);
-            e.printStackTrace();
         } finally {
-            JedisFactory.returnJedis(daoKey, jedis, broken);
+            if (jedis != null) jedis.close();
         }
     }
 
-    public Boolean exist(int index, String key) {
-        boolean broken = false;
+    public void rpush(int index, String key, String value) {
+        String status = null;
+        Jedis jedis = null;
+        try {
+            jedis = JedisFactory.getJedis(daoKey);
+            status = jedis.select(index);
+            jedis.rpush(key, value);
+        } finally {
+            if (jedis != null) jedis.close();
+        }
+    }
+
+    public long llen(int index, String key) {
+        String status = null;
+        Jedis jedis = null;
+        try {
+            jedis = JedisFactory.getJedis(daoKey);
+            String code = jedis.select(index);
+            return jedis.llen(key);
+        } finally {
+            if (jedis != null) jedis.close();
+        }
+    }
+
+    public Boolean exists(int index, String key) {
         String status = null;
         Jedis jedis = null;
         try {
             jedis = JedisFactory.getJedis(daoKey);
             status = jedis.select(index);
             return jedis.exists(key);
-        } catch (JedisException e) {
-            broken = JedisFactory.isBroken(e);
-            e.printStackTrace();
-            return null;
         } finally {
-            JedisFactory.returnJedis(daoKey, jedis, broken);
+            if (jedis != null) jedis.close();
         }
     }
 
     public Boolean flush(int index) {
-        boolean broken = false;
         String status = null;
         Jedis jedis = null;
         try {
@@ -100,44 +115,24 @@ public class RedisDaoImpl implements RedisDao {
             status = jedis.select(index);
             status = jedis.flushDB();
             return true;
-        } catch (JedisException e) {
-            broken = JedisFactory.isBroken(e);
-            e.printStackTrace();
-            return null;
         } finally {
-            JedisFactory.returnJedis(daoKey, jedis, broken);
+            if (jedis != null) jedis.close();
         }
     }
 
     public Long size() {
-        boolean broken = false;
         Jedis jedis = null;
         try {
             jedis = JedisFactory.getJedis(daoKey);
             return jedis.dbSize();
-        } catch (JedisException e) {
-            broken = JedisFactory.isBroken(e);
-            e.printStackTrace();
-            return null;
         } finally {
-            JedisFactory.returnJedis(daoKey, jedis, broken);
+            if (jedis != null) jedis.close();
         }
     }
 
-    public long llen(int index, String key) {
-        boolean broken = false;
-        String status = null;
-        Jedis jedis = null;
-        try {
-            jedis = JedisFactory.getJedis(daoKey);
-            String code = jedis.select(index);
-            return jedis.llen(key);
-        } catch (JedisException e) {
-            broken = JedisFactory.isBroken(e);
-            e.printStackTrace();
-            return 0;
-        } finally {
-            JedisFactory.returnJedis(daoKey, jedis, broken);
-        }
+    public Jedis getJedis(int index) {
+        Jedis jedis = JedisFactory.getJedis(daoKey);
+        String status = jedis.select(index);
+        return jedis;
     }
 }

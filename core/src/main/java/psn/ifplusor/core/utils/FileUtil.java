@@ -1,4 +1,8 @@
-package psn.ifplusor.core.common;
+package psn.ifplusor.core.utils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import psn.ifplusor.core.interfaces.Processor;
 
 import java.io.*;
 import java.nio.channels.FileChannel;
@@ -10,6 +14,10 @@ import java.nio.charset.Charset;
  * @version 12/15/16
  */
 public class FileUtil {
+
+    private static final Logger logger = LoggerFactory.getLogger(FileUtil.class);
+
+    private FileUtil() {}
 
     public static String removeEndSeparator(String path) {
         if (path.endsWith(File.separator)) {
@@ -25,7 +33,10 @@ public class FileUtil {
         return copy(inFile, outFile);
     }
 
-    public static long copy(File inFile, File outFile) throws FileNotFoundException, IOException {
+    /**
+     * @throws FileNotFoundException 找不到文件
+     */
+    public static long copy(File inFile, File outFile) throws IOException {
         FileChannel inChannel = null;
         FileChannel outChannel = null;
         try {
@@ -38,7 +49,7 @@ public class FileUtil {
                 try {
                     inChannel.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    logger.error(ErrorUtil.getStackTrace(e));
                 }
             }
 
@@ -46,25 +57,29 @@ public class FileUtil {
                 try {
                     outChannel.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    logger.error(ErrorUtil.getStackTrace(e));
                 }
             }
         }
     }
 
-    public static long copy(FileChannel inChannel, FileChannel outChannel)
-            throws IOException {
+    public static long copy(FileChannel inChannel, FileChannel outChannel) throws IOException {
         return inChannel.transferTo(0, inChannel.size(), outChannel);
     }
 
-    public static long copyWithLock(String inFilePath, String outFilePath)
-            throws FileNotFoundException, IOException {
+    /**
+     * @throws FileNotFoundException 找不到文件
+     */
+    public static long copyWithLock(String inFilePath, String outFilePath) throws IOException {
         File inFile = new File(inFilePath);
         File outFile = new File(outFilePath);
         return copyWithLock(inFile, outFile);
     }
 
-    public static long copyWithLock(File inFile, File outFile) throws FileNotFoundException, IOException {
+    /**
+     * @throws FileNotFoundException 找不到文件
+     */
+    public static long copyWithLock(File inFile, File outFile) throws IOException {
         FileChannel inChannel = null;
         FileChannel outChannel = null;
         try {
@@ -77,7 +92,7 @@ public class FileUtil {
                 try {
                     inChannel.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    logger.error(ErrorUtil.getStackTrace(e));
                 }
             }
 
@@ -85,7 +100,7 @@ public class FileUtil {
                 try {
                     outChannel.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    logger.error(ErrorUtil.getStackTrace(e));
                 }
             }
         }
@@ -102,14 +117,10 @@ public class FileUtil {
                 try {
                     lock.release();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    logger.error(ErrorUtil.getStackTrace(e));
                 }
             }
         }
-    }
-
-    public interface Processor {
-        void doProcess(FileChannel channel);
     }
 
     public static boolean tryLock(FileChannel channel, Processor processor) throws IOException {
@@ -135,7 +146,7 @@ public class FileUtil {
                 try {
                     lock.release();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    logger.error(ErrorUtil.getStackTrace(e));
                 }
             }
         }
@@ -146,7 +157,7 @@ public class FileUtil {
     }
 
     public static boolean lock(FileChannel channel, long position, long size, boolean shared,
-                                  Processor processor) throws IOException {
+                               Processor processor) throws IOException {
         FileLock lock = null;
         try {
             // 测试锁

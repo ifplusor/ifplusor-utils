@@ -9,6 +9,7 @@ import redis.clients.jedis.exceptions.JedisException;
 import java.util.HashMap;
 
 /**
+ * JedisFactory 使用 JedisPool 管理 redis 连接，封装 getResource、select、close 操作
  * @author james
  * @version 11/21/16
  */
@@ -37,7 +38,7 @@ public class JedisFactory {
 
     public static void registerJedisPool(String key, String host, int port) {
         JedisPoolConfig config = new JedisPoolConfig();
-        config.setMaxActive(1000);
+        config.setMaxTotal(1000);
         config.setMaxIdle(100);
         config.setTestOnBorrow(true);
 
@@ -79,11 +80,13 @@ public class JedisFactory {
         return jedisPool.getResource();
     }
 
+    @Deprecated
     public static boolean isBroken(JedisException jedisException) {
         return !(jedisException instanceof JedisDataException) ||
                 (jedisException.getMessage() != null && jedisException.getMessage().contains("READONLY"));
     }
 
+    @Deprecated
     public static boolean returnJedis(String key, Jedis jedis, boolean broken) {
         if (jedis == null) {
             return true;

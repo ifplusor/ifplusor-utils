@@ -1,10 +1,12 @@
 package psn.ifplusor.dao.hibernate;
 
+import org.hibernate.HibernateException;
 import org.hibernate.Query;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import psn.ifplusor.core.utils.ErrorUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,16 +14,16 @@ import java.util.List;
 
 public class HibernateDaoImpl implements HibernateDao {
 
-    static List<Object> lstInserts = Collections
-            .synchronizedList(new ArrayList<Object>());
-    static List<Object> lstInserts2 = Collections
-            .synchronizedList(new ArrayList<Object>());
-    static List<Object> lstUpdates = Collections
-            .synchronizedList(new ArrayList<Object>());
-    static List<Object> lstUpdates2 = Collections
-            .synchronizedList(new ArrayList<Object>());
+    private static final Logger logger = LoggerFactory.getLogger(HibernateDaoImpl.class);
 
-    public static final Logger logger = LoggerFactory.getLogger(HibernateDaoImpl.class);
+    // 使用线程安全的集合对象
+    private final List<Object> lstInserts = Collections.synchronizedList(new ArrayList<Object>());
+    private final List<Object> lstInserts2 = Collections.synchronizedList(new ArrayList<Object>());
+    private final List<Object> lstUpdates = Collections.synchronizedList(new ArrayList<Object>());
+    private final List<Object> lstUpdates2 = Collections.synchronizedList(new ArrayList<Object>());
+
+    private int nUpdate = 200;
+    private int nInsert = 100;
 
     private String daoKey;
 
@@ -29,272 +31,171 @@ public class HibernateDaoImpl implements HibernateDao {
         daoKey = key;
     }
 
-    int nUpdate = 200;
-    int nInsert = 100;
-
-    public Boolean insert(Object o, String id, Boolean bSave) {
-
-        if (o == null) {
-            return false;
-        }
-
-        ArrayList<Object> lstTempInserts = new ArrayList<Object>();
-        synchronized (lstInserts) {
-            if (!bSave) {
-                if (lstInserts.size() < nInsert) {
-                    if (o == null) {
-                        return true;
-                    }
-                    lstInserts.add(o);
-
-                    return true;
-                } else {
-                    lstInserts2.add(o);
-                }
-            } else {
-
-                if (o != null) {
-                    lstInserts.add(o);
-                }
-            }
-
-            lstTempInserts.addAll(lstInserts);
-
-            lstInserts.clear();
-            lstInserts.addAll(lstInserts2);
-            lstInserts2.clear();
-        }
-
+    public boolean insertOne(Object o) {
         Session session = HibernateSessionFactory.getSession(daoKey);
-
-        Transaction trans = session.beginTransaction();
-        trans.setTimeout(30000);
-
         try {
-
-            for (Object o2 : lstTempInserts) {
-
-                session.saveOrUpdate(o2);
-            }
-
-            logger.info("!!!!!!!!!!!!!!!!Begin Insert Commit 107 Count:  lstInserts:"
-                    + lstTempInserts.size());
+            Transaction trans = session.beginTransaction();
+            trans.setTimeout(30000);
+            session.saveOrUpdate(o);
             trans.commit();
-            logger.info("!!!!!!!!!!!!!!!!End Insert Commit 107 Count:  lstInserts:"
-                    + lstTempInserts.size());
-
             return true;
         } catch (Exception e) {
-            logger.error("~~~~~~~~~~~~~~~~~~~~~~~~~~~107 insert Error commit:"
-                    + e.getMessage());
-            logger.error("lstTempInserts:" + lstTempInserts.size());
+            logger.error(ErrorUtil.getStackTrace(e));
+        } finally {
             session.clear();
-            session.close();
-//            HibernateSessionFactory.closeSession(daoKey);
+            try {
+                session.close();
+            } catch (HibernateException e) {
+                logger.error(ErrorUtil.getStackTrace(e));
+            }
+        }
+        return false;
+    }
 
-            for (Object o2 : lstTempInserts) {
+    public boolean insert(Object o, boolean useCache) {
+        if (o == null) return false;
+        if (!useCache) return insertOne(o);
+
+        synchronized (lstInserts) {
+            lstInserts.add(o);
+            if (lstInserts.size() > nInsert) {
+                // insert
+                Session session = HibernateSessionFactory.getSession(daoKey);
                 try {
-                    session = HibernateSessionFactory.getSession(daoKey);
-                    trans = session.beginTransaction();
+                    Transaction trans = session.beginTransaction();
+                    trans.setTimeout(30000);
 
-                    session.saveOrUpdate(o2);
-                    trans.commit();
-
-                } catch (Exception e2) {
-                    // if(!e2.getMessage().contains("Duplicate entry"))
-                    {
-                        logger.error("107 sec error Input:" + e2.getMessage());
+                    for (Object o2 : lstInserts) {
+                        session.saveOrUpdate(o2);
                     }
-                } finally {
+
+                    logger.debug("start commit, count: " + lstInserts.size());
+                    trans.commit();
+                    logger.debug("commit end.");
+
+                    lstInserts.clear();
+                    return true;
+                } catch (Exception e) {
+                    logger.error("encounter exception when commit, try insert again one by one.");
                     session.clear();
                     session.close();
-//                    HibernateSessionFactory.closeSession(daoKey);
-                    // logger.info("107 sec Input:"+id);
+                    for (Object o2 : lstInserts) {
+                        insertOne(o2);
+                    }
+                } finally {
+                    try {
+                        session.clear();
+                        session.close();
+                    } catch (Exception e) {
+                        logger.error(ErrorUtil.getStackTrace(e));
+                    }
                 }
-            }
-        } finally {
-            try {
-                session.clear();
-                session.close();
-//                HibernateSessionFactory.closeSession(daoKey);
-            } catch (Exception e) {
-                // TODO: handle exception
             }
         }
 
         return true;
     }
 
-    public Boolean update(Object o, String id, Boolean bSave) {
+    public boolean updateOne(Object o) {
+        Session session = HibernateSessionFactory.getSession(daoKey);
         try {
-            if (o == null) {
-                return false;
-            }
-            ArrayList<Object> lstTempUpdates = new ArrayList<Object>();
-            synchronized (lstUpdates) {
-                if (!bSave) {
-                    if (lstUpdates.size() < nUpdate) {
-                        lstUpdates.add(o);
-                        return true;
-                    } else {
-                        lstUpdates2.add(o);
-                    }
-                } else {
-
-                    if (o != null) {
-                        lstUpdates.add(o);
-                    }
-                }
-
-                lstTempUpdates.addAll(lstUpdates);
-
-                lstUpdates.clear();
-                lstUpdates.addAll(lstUpdates2);
-                lstUpdates2.clear();
-
-            }
-
-            Session session = HibernateSessionFactory.getSession(daoKey);
-
             Transaction trans = session.beginTransaction();
             trans.setTimeout(30000);
-
-            session.flush();
-
-            try {
-
-                for (Object o2 : lstTempUpdates) {
-                    if (o2 == null) {
-                        continue;
-                    }
-                    session.saveOrUpdate(o2);
-                }
-
-                trans.commit();
-
-                return true;
-
-            } catch (Exception e) {
-                logger.error("107 Update Error commit:" + e.getMessage());
-                session.clear();
-                session.close();
-//                HibernateSessionFactory.closeSession(daoKey);
-
-                for (Object o2 : lstTempUpdates) {
-                    try {
-                        session = HibernateSessionFactory.getSession(daoKey);
-                        trans = session.beginTransaction();
-
-                        session.merge(o2);
-                        trans.commit();
-
-                        // logger.info("107 sec Update");
-
-                    } catch (Exception e2) {
-                        logger.error("107 sec error Update:" + e2.getMessage());
-                    } finally {
-                        session.clear();
-                        session.close();
-//                        HibernateSessionFactory.closeSession(daoKey);
-                    }
-                }
-            } finally {
-                try {
-                    session.clear();
-                    session.close();
-//                    HibernateSessionFactory.closeSession(daoKey);
-                } catch (Exception e) {
-                    // TODO: handle exception
-                }
-            }
-
-        } catch (Exception e) {
-            System.out.println("107 update Error:" + e.getMessage());
-        }
-        return false;
-    }
-
-    public Boolean updateOne(Object o) {
-        try {
-
-            Session session = HibernateSessionFactory.getSession(daoKey);
-
-            Transaction trans = session.beginTransaction();
-
-            try {
-
-                session.update(o);
-
-                trans.commit();
-
-                return true;
-
-            } catch (Exception e) {
-                System.out.println("107 Update One Error commit:"
-                        + e.getMessage());
-            } finally {
-                session.clear();
-                session.close();
-//                HibernateSessionFactory.closeSession(daoKey);
-            }
-
-        } catch (Exception e) {
-            System.out.println("107 update Error:" + e.getMessage());
-        }
-        return false;
-    }
-
-    public Boolean delete(Object o) {
-
-        Session session = HibernateSessionFactory.getSession(daoKey);
-        try {
-
-            Transaction trans = session.beginTransaction();
-
-            try {
-                session.delete(o);
-
-                trans.commit();
-            } catch (Exception e) {
-                System.out.println("107 delete Error commit:" + e.getMessage());
-                trans.rollback();
-            } finally {
-                session.clear();
-                session.close();
-//                HibernateSessionFactory.closeSession(daoKey);
-            }
-
+            session.update(o);
+            trans.commit();
             return true;
         } catch (Exception e) {
-            System.out.println("107 del Error:" + e.getMessage());
+            logger.error(ErrorUtil.getStackTrace(e));
+        } finally {
+            session.clear();
+            try {
+                session.close();
+            } catch (HibernateException e) {
+                logger.error(ErrorUtil.getStackTrace(e));
+            }
         }
-
         return false;
     }
 
-    public int delete(String hsql) {
-        int ref = 0;
+    public boolean update(Object o, boolean useCache) {
+        if (o == null) return false;
+        if (!useCache) return updateOne(o);
+
+        synchronized (lstUpdates) {
+            lstUpdates.add(o);
+            if (lstUpdates.size() > nUpdate) {
+                // insert
+                Session session = HibernateSessionFactory.getSession(daoKey);
+                try {
+                    Transaction trans = session.beginTransaction();
+                    trans.setTimeout(30000);
+
+                    for (Object o2 : lstInserts) {
+                        session.update(o2);
+                    }
+
+                    logger.debug("start commit, count: " + lstUpdates.size());
+                    trans.commit();
+                    logger.debug("commit end.");
+
+                    lstUpdates.clear();
+                    return true;
+                } catch (Exception e) {
+                    logger.error("encounter exception when commit, try update again one by one.");
+                    session.clear();
+                    session.close();
+                    for (Object o2 : lstUpdates) {
+                        updateOne(o2);
+                    }
+                } finally {
+                    try {
+                        session.clear();
+                        session.close();
+                    } catch (Exception e) {
+                        logger.error(ErrorUtil.getStackTrace(e));
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    public boolean delete(Object o) {
         Session session = HibernateSessionFactory.getSession(daoKey);
         try {
-
-            String hql = hsql;
-
-            Query query = session.createQuery(hql);
-
-            ref = query.executeUpdate();
-
-            session.beginTransaction().commit();
-
-            System.out.println("delete dates=>" + ref);
+            Transaction trans = session.beginTransaction();
+            try {
+                session.delete(o);
+                trans.commit();
+                return true;
+            } catch (Exception e) {
+                logger.error("encounter exception when commit, rollback!");
+                trans.rollback();
+            }
         } catch (Exception e) {
-            System.out.println("107 del Error:" + e.getMessage());
+            logger.error(ErrorUtil.getStackTrace(e));
         } finally {
             session.clear();
             session.close();
-//            HibernateSessionFactory.closeSession(daoKey);
         }
+        return false;
+    }
 
-        return ref;
+    public int delete(String hql) {
+        Session session = HibernateSessionFactory.getSession(daoKey);
+        try {
+            Query query = session.createQuery(hql);
+            int ref = query.executeUpdate();
+            session.beginTransaction().commit();
+            return ref;
+        } catch (Exception e) {
+            logger.error(ErrorUtil.getStackTrace(e));
+            return 0;
+        } finally {
+            session.clear();
+            session.close();
+        }
     }
 
     public List SearchList(String hsql) {
@@ -340,7 +241,6 @@ public class HibernateDaoImpl implements HibernateDao {
         } finally {
             session.clear();
             session.close();
-//            HibernateSessionFactory.closeSession(daoKey);
         }
         return list;
     }
@@ -350,9 +250,7 @@ public class HibernateDaoImpl implements HibernateDao {
 
         try {
             Transaction trans = session.beginTransaction();
-
             List list = session.createQuery(hsql).list();
-
             trans.commit();
 
             if (list.size() > 0) {
@@ -363,7 +261,6 @@ public class HibernateDaoImpl implements HibernateDao {
         } finally {
             session.clear();
             session.close();
-//            HibernateSessionFactory.closeSession(daoKey);
         }
 
         return null;
@@ -373,20 +270,14 @@ public class HibernateDaoImpl implements HibernateDao {
         int nCount = 0;
         Session session = HibernateSessionFactory.getSession(daoKey);
         try {
-
             Transaction trans = session.beginTransaction();
-
-            nCount = ((Number) session.createQuery(hsql).uniqueResult())
-                    .intValue();
-
+            nCount = ((Number) session.createQuery(hsql).uniqueResult()).intValue();
             trans.commit();
-
         } catch (Exception e) {
             System.out.println("107 count Error:" + e.getMessage());
         } finally {
             session.clear();
             session.close();
-//            HibernateSessionFactory.closeSession(daoKey);
         }
         return nCount;
 

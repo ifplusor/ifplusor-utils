@@ -1,4 +1,7 @@
-package psn.ifplusor.core.common;
+package psn.ifplusor.core.utils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,12 +13,17 @@ import java.util.Map;
  */
 public class MapUtil {
 
+    private static final Logger logger = LoggerFactory.getLogger(MapUtil.class);
+
     private static int capacity = 10;
+
+    private MapUtil() {}
 
     public static void setInitialCapacity(int capacity) {
         MapUtil.capacity = capacity;
     }
 
+    @SuppressWarnings("unchecked")
     public static <K, V> int addToListMap(Map<K, List<V>> map, K key, V value, Class<? extends List> clazz)
             throws IllegalAccessException, InstantiationException {
 
@@ -44,9 +52,9 @@ public class MapUtil {
         try {
             return addToListMap(map, key, value, ArrayList.class);
         } catch (InstantiationException e) {
-            e.printStackTrace();
+            logger.error(ErrorUtil.getStackTrace(e));
         } catch (IllegalAccessException e) {
-            e.printStackTrace();
+            logger.error(ErrorUtil.getStackTrace(e));
         }
         return -1;
     }
