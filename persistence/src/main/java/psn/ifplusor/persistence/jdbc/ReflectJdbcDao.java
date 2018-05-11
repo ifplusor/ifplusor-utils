@@ -3,6 +3,8 @@ package psn.ifplusor.persistence.jdbc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteDataSource;
+import org.sqlite.SQLiteErrorCode;
+import org.sqlite.SQLiteException;
 import psn.ifplusor.persistence.entity.EntityUtil;
 
 import javax.sql.DataSource;
@@ -223,6 +225,17 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
         return insertOrUpdate(table, lst);
     }
 
+    private int insertFailedThenUpdate(T obj, List<EntityUtil.Property> lstProperties, EntityUtil.Property id, Set<String> exColumn, PreparedStatement updateStmt)
+            throws InvocationTargetException, IllegalAccessException, SQLException {
+        int index = 1;
+        for (EntityUtil.Property property : lstProperties) {
+            if (exColumn.contains(property.getColumn())) continue;
+            updateStmt.setObject(index++, property.getGetter().invoke(obj));
+        }
+        updateStmt.setObject(index, id.getGetter().invoke(obj));
+        return updateStmt.executeUpdate();
+    }
+
     public int insertOrUpdate(String table, List<T> lstObj) {
         if (lstObj.size() == 0) {
             return 0;
@@ -268,13 +281,12 @@ public class ReflectJdbcDao<T> implements JdbcDao<T> {
                             count += insertStmt.executeUpdate();
                         } catch (SQLIntegrityConstraintViolationException e) {
                             // update
-                            index = 1;
-                            for (EntityUtil.Property property : lstProperties) {
-                                if (exColumn.contains(property.getColumn())) continue;
-                                updateStmt.setObject(index++, property.getGetter().invoke(obj));
+                            count += insertFailedThenUpdate(obj, lstProperties, id, exColumn, updateStmt);
+                        } catch (SQLiteException e) {
+                            if (!SQLiteErrorCode.SQLITE_CONSTRAINT_PRIMARYKEY.equals(e.getResultCode())) {
+                                throw e;
                             }
-                            updateStmt.setObject(index, id.getGetter().invoke(obj));
-                            count += updateStmt.executeUpdate();
+                            count += insertFailedThenUpdate(obj, lstProperties, id, exColumn, updateStmt);
                         }
                     } catch (SQLException e) {
                         e.printStackTrace();
