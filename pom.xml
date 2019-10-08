@@ -88,15 +88,15 @@
                     </descriptors>
                 </configuration>
 
-                <!--<executions>
+                <executions>
                     <execution>
                         <id>make-assembly</id>
-                        <phase>package</phase>
+                        <!--<phase>package</phase>-->
                         <goals>
                             <goal>single</goal>
                         </goals>
                     </execution>
-                </executions>-->
+                </executions>
             </plugin>
 
             <plugin>
